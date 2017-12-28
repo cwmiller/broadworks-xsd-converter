@@ -4,8 +4,11 @@ namespace CWM\BroadWorksXsdConverter;
 
 use RuntimeException;
 use Zend\Code\Generator\ClassGenerator;
+use Zend\Code\Generator\DocBlock\Tag\ParamTag;
+use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
 use Zend\Code\Generator\DocBlockGenerator;
 use Zend\Code\Generator\FileGenerator;
+use Zend\Code\Generator\MethodGenerator;
 use Zend\Code\Generator\PropertyGenerator;
 
 class Writer
@@ -53,11 +56,68 @@ class Writer
                 );
 
                 $class->setDocBlock(DocBlockGenerator::fromArray([
-                    'longDescription' => $type->getDescription()
+                    'longDescription' => $type->getDescription(),
                 ]));
 
                 foreach ($type->getFields() as $field) {
-                    $class->addPropertyFromGenerator($this->generateProperty($field, $types));
+                    $phpType = $this->determinePhpType($field, $types);
+                    if ($phpType === null) {
+                        throw new RuntimeException('Unable to find type ' . $field->getTypeName());
+                    }
+
+                    // Create property
+                    $property = new PropertyGenerator($field->getName(), null, PropertyGenerator::FLAG_PRIVATE);
+                    $property->setDocBlock(DocBlockGenerator::fromArray([
+                        'tags' => [
+                            ['name' => 'var', 'description' => $phpType]
+                        ]
+                    ]));
+
+                    $class->addPropertyFromGenerator($property);
+
+                    // Create getter
+                    $getter = new MethodGenerator(
+                         'get' . ucwords($field->getName()),
+                        [],
+                        null,
+                         sprintf('return $this->%s;', $field->getName()),
+                         new DocBlockGenerator(
+                            null,
+                            null,
+                            [
+                                new ReturnTag([
+                                    'datatype' => $phpType . '|null',
+                                ])
+                            ]
+                         )
+                    );
+
+                    $class->addMethodFromGenerator($getter);
+
+                    // Create setter
+                    $setter = new MethodGenerator(
+                        'set' . ucwords($field->getName()),
+                        [
+                            ['name' => $field->getName()],
+                        ],
+                        null,
+                        sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()),
+                        new DocBlockGenerator(
+                            null,
+                            null,
+                            [
+                                new ParamTag(
+                                    $field->getName(),
+                                    [$phpType, 'null']
+                                ),
+                                new ReturnTag([
+                                    'datatype' => '$this',
+                                ]),
+                            ]
+                        )
+                    );
+
+                    $class->addMethodFromGenerator($setter);
                 }
 
                 $file = new FileGenerator([
@@ -65,10 +125,9 @@ class Writer
                 ]);
 
                 $outputPath = $this->outDir . DIRECTORY_SEPARATOR . str_replace('\\', DIRECTORY_SEPARATOR, $fullClassName) . '.php';
-
                 $dirPath = dirname($outputPath);
-                @mkdir($dirPath, null, true);
 
+                @mkdir($dirPath, null, true);
                 file_put_contents($outputPath, $file->generate());
             }
         }
@@ -77,15 +136,10 @@ class Writer
     /**
      * @param Field $field
      * @param Type[] $allTypes
-     * @return PropertyGenerator
-     * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
-     * @throws \RuntimeException
-     * @throws \InvalidArgumentException
+     * @return null|string
      */
-    private function generateProperty(Field $field, $allTypes)
+    private function determinePhpType(Field $field, $allTypes)
     {
-        $property = new PropertyGenerator($field->getName(), null, PropertyGenerator::FLAG_PRIVATE);
-
         $phpType = null;
 
         // Check if referenced type is an XSD type. If so, use a native PHP type
@@ -103,21 +157,11 @@ class Writer
             }
         }
 
-        if ($phpType === null) {
-            throw new RuntimeException('Unable to find type ' . $field->getTypeName());
-        }
-
-        if ($field->isArray()) {
+        if ($field !== null && $field->isArray()) {
             $phpType .= '[]';
         }
 
-        $property->setDocBlock(DocBlockGenerator::fromArray([
-            'tags' => [
-                ['name' => 'var', 'description' => $phpType]
-            ]
-        ]));
-
-        return $property;
+        return $phpType;
     }
 
     /**
@@ -159,7 +203,7 @@ class Writer
      */
     private function xsdToPhpType($xsdType)
     {
-        $xsdType = substr($xsdType, strlen('http://www.w3.org/2001/XMLSchema')+1);
+        $xsdType = substr($xsdType, strlen('http://www.w3.org/2001/XMLSchema') + 1);
 
         switch ($xsdType) {
             case 'float':
