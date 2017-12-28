@@ -1,0 +1,22 @@
+{
+  "name": "cwm/broadworks-xsd-converter",
+  "description": "Converts XSD files for BroadWorks APIs into PHP classes.",
+  "type": "project",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Chase Miller",
+      "email": "chase@miller.sh"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "CWM\\BroadWorksXsdConverter\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">=5.4.0",
+    "ext-xml": "*",
+    "zendframework/zend-code": "^3.1"
+  }
+}
