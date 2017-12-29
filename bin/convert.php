@@ -4,7 +4,11 @@
 use CWM\BroadWorksXsdConverter\Parser;
 use CWM\BroadWorksXsdConverter\Writer;
 
-require __DIR__ . '/../vendor/autoload.php';
+if (is_file(__DIR__ . '/../../../autoload.php')) {
+    require __DIR__ . '/../../../autoload.php';
+} else {
+    require __DIR__ . '/../vendor/autoload.php';
+}
 
 $args = $argv;
 $opts = [];
