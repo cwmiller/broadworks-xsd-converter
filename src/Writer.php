@@ -4,7 +4,9 @@ namespace CWM\BroadWorksXsdConverter;
 
 use RuntimeException;
 use Zend\Code\Generator\ClassGenerator;
+use Zend\Code\Generator\DocBlock\Tag\GenericTag;
 use Zend\Code\Generator\DocBlock\Tag\ParamTag;
+use Zend\Code\Generator\DocBlock\Tag\PropertyTag;
 use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
 use Zend\Code\Generator\DocBlockGenerator;
 use Zend\Code\Generator\FileGenerator;
@@ -34,105 +36,110 @@ class Writer
     public function write(array $types)
     {
         foreach ($types as $type) {
+            // Only complex types get generated classes. All simple types get treated as PHP primitives.
             if ($type instanceof ComplexType) {
-                $fullClassName = trim($this->namespace, '\\') . '\\' . trim(str_replace(':', '\\', $type->getName()), '\\');
-                $fullChunks = explode('\\', $fullClassName);
-                $className = array_pop($fullChunks);
-                $namespace = trim(implode('\\', $fullChunks), '\\');
-                $flags = 0;
+                // Construct the fully qualified class name
+                $namespaceSegments = array_filter(
+                    explode(
+                        '\\',
+                        $this->namespace . '\\' . str_replace(':', '\\', $type->getName())
+                    )
+                );
+                $qualifiedClassName = implode('\\', $namespaceSegments);
+                $unqualifiedClassName = array_pop($namespaceSegments);
+                $namespace = implode('\\', $namespaceSegments);
                 $parentClass = null;
 
-                if ($type->isAbstract()) {
-                    $flags |= ClassGenerator::FLAG_ABSTRACT;
-                }
-
+                // Construct the fully qualified class name for the parent class if this type is a sub-type
                 if ($type->getParentName() !== null) {
-                    $parentClass = '\\' . trim($this->namespace, '\\') . '\\' . trim(str_replace(':', '\\', $type->getParentName()), '\\');
+                    $parentClass = implode(
+                        '\\',
+                        array_filter(
+                            explode(
+                                '\\',
+                                $this->namespace . '\\' . str_replace(':', '\\', $type->getParentName())
+                            )
+                        )
+                    );
                 }
 
-                $class = new ClassGenerator(
-                    $className,
-                    $namespace,
-                    $flags,
-                    $parentClass,
-                    [],
-                    []
-                );
-
-                $class->setDocBlock(DocBlockGenerator::fromArray([
-                    'longDescription' => $type->getDescription(),
-                ]));
+                $class = (new ClassGenerator())
+                    ->setName($unqualifiedClassName)
+                    ->setNamespaceName($namespace)
+                    ->setFlags($type->isAbstract() ? ClassGenerator::FLAG_ABSTRACT : 0)
+                    ->setExtendedClass($parentClass)
+                    ->setDocBlock(DocBlockGenerator::fromArray([
+                        'shortDescription' => $unqualifiedClassName,
+                        'longDescription' => $type->getDescription(),
+                    ]));
 
                 foreach ($type->getFields() as $field) {
                     $phpType = $this->determinePhpType($field, $types);
+
                     if ($phpType === null) {
                         throw new RuntimeException('Unable to find type ' . $field->getTypeName());
                     }
 
-                    // Create property
-                    $property = new PropertyGenerator($field->getName(), null, PropertyGenerator::FLAG_PRIVATE);
-                    $property->setDocBlock(DocBlockGenerator::fromArray([
-                        'tags' => [
-                            ['name' => 'var', 'description' => $phpType]
-                        ]
-                    ]));
+                    // Create private property for field
+                    $property = (new PropertyGenerator())
+                        ->setName($field->getName())
+                        ->setFlags(PropertyGenerator::FLAG_PRIVATE)
+                        ->setDocBlock(new DocBlockGenerator(
+                            null,
+                            null,
+                            [new GenericTag('var', $phpType . '|null')]
+                        ));
 
                     $class->addPropertyFromGenerator($property);
 
-                    // Create getter
-                    $getter = new MethodGenerator(
-                         'get' . ucwords($field->getName()),
-                        [],
-                        null,
-                         sprintf('return $this->%s;', $field->getName()),
-                         new DocBlockGenerator(
+                    // Create getter for field
+                    $getter = (new MethodGenerator())
+                        ->setName(sprintf('get%s', ucwords($field->getName())))
+                        ->setBody(sprintf('return $this->%s;', $field->getName()))
+                        ->setDocBlock(new DocBlockGenerator(
+                            'Getter for ' . $field->getName(),
                             null,
-                            null,
-                            [
-                                new ReturnTag([
-                                    'datatype' => $phpType . '|null',
-                                ])
-                            ]
-                         )
-                    );
+                            [new ReturnTag(['datatype' => $phpType . '|null'])]
+                        ));
 
                     $class->addMethodFromGenerator($getter);
 
-                    // Create setter
-                    $setter = new MethodGenerator(
-                        'set' . ucwords($field->getName()),
-                        [
-                            ['name' => $field->getName()],
-                        ],
-                        null,
-                        sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()),
-                        new DocBlockGenerator(
-                            null,
-                            null,
+                    // Create getter for field
+                    $setter = (new MethodGenerator())
+                        ->setName(sprintf('set%s', ucwords($field->getName())))
+                        ->setBody(sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()))
+                        ->setParameter(['name' => $field->getName()])
+                        ->setDocBlock(new DocBlockGenerator(
+                            'Setter for ' . $field->getName(),
+                            '',
                             [
-                                new ParamTag(
-                                    $field->getName(),
-                                    [$phpType, 'null']
-                                ),
-                                new ReturnTag([
-                                    'datatype' => '$this',
-                                ]),
+                                new ParamTag($field->getName(), [$phpType, 'null']),
+                                new ReturnTag(['datatype' => '$this'])
                             ]
-                        )
-                    );
+                        ));
 
                     $class->addMethodFromGenerator($setter);
                 }
 
-                $file = new FileGenerator([
-                    'classes' => [$class]
-                ]);
+                // Convert fully qualified class name into PSR-4 directory structure
+                $outputPath =
+                    $this->outDir
+                    . DIRECTORY_SEPARATOR
+                    . str_replace('\\', DIRECTORY_SEPARATOR, $qualifiedClassName)
+                    . '.php';
 
-                $outputPath = $this->outDir . DIRECTORY_SEPARATOR . str_replace('\\', DIRECTORY_SEPARATOR, $fullClassName) . '.php';
+                // Ensure the destination directory exists
                 $dirPath = dirname($outputPath);
+                if (!is_dir($dirPath) && !mkdir($dirPath, null, true)) {
+                    echo 'Unable to create directory ' . $dirPath . PHP_EOL;
+                    exit(-1);
+                }
 
-                @mkdir($dirPath, null, true);
-                file_put_contents($outputPath, $file->generate());
+                $file = new FileGenerator(['classes' => [$class]]);
+                if (!file_put_contents($outputPath, $file->generate())) {
+                    echo 'Unable to write file ' . $outputPath . PHP_EOL;
+                    exit(-1);
+                }
             }
         }
     }
@@ -142,13 +149,13 @@ class Writer
      * @param Type[] $allTypes
      * @return null|string
      */
-    private function determinePhpType(Field $field, $allTypes)
+    private function determinePhpType(Field $field, array $allTypes)
     {
         $phpType = null;
 
         // Check if referenced type is an XSD type. If so, use a native PHP type
         if ($this->isXsdType($field->getTypeName())) {
-            $phpType = $this->xsdToPhpType($field->getTypeName());
+            $phpType = $this->xsdToPrimitiveType($field->getTypeName());
         } else {
             if (array_key_exists($field->getTypeName(), $allTypes)) {
                 $type = $allTypes[$field->getTypeName()];
@@ -156,7 +163,16 @@ class Writer
                 if ($type instanceof SimpleType) {
                     $phpType = $this->simpleTypeToPhpType($type, $allTypes);
                 } else {
-                    $phpType = '\\' . trim($this->namespace, '\\') . '\\' . trim(str_replace(':', '\\', $type->getName()), '\\');
+                    $phpType = '\\' . implode(
+                        '\\',
+                        array_filter(
+                            explode(
+                                '\\',
+                                $this->namespace . '\\' . str_replace(':', '\\', $type->getName())
+                            )
+                        )
+                    );
+
                 }
             }
         }
@@ -175,21 +191,23 @@ class Writer
      */
     private function simpleTypeToPhpType(SimpleType $type, $allTypes)
     {
+        $phpType = null;
+
         $restriction = $type->getRestriction();
-        // Check if referenced type is an XSD type. If so, use a native PHP type
+        // Check if referenced type is an XSD type. If so, use a primitive type
         if ($this->isXsdType($restriction)) {
-            return $this->xsdToPhpType($restriction);
+            $phpType = $this->xsdToPrimitiveType($restriction);
         } else {
             // Restriction can also be a simple type
             if (array_key_exists($restriction, $allTypes)) {
                 $restrictionType = $allTypes[$restriction];
                 if ($restrictionType instanceof SimpleType) {
-                    return $this->simpleTypeToPhpType($restrictionType, $allTypes);
+                    $phpType = $this->simpleTypeToPhpType($restrictionType, $allTypes);
                 }
             }
         }
 
-        return null;
+        return $phpType;
     }
 
     /**
@@ -205,7 +223,7 @@ class Writer
      * @param $xsdType
      * @return string
      */
-    private function xsdToPhpType($xsdType)
+    private function xsdToPrimitiveType($xsdType)
     {
         $xsdType = substr($xsdType, strlen('http://www.w3.org/2001/XMLSchema') + 1);
 

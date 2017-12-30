@@ -157,7 +157,8 @@ class Parser
                     for ($j = 0; $j < $child->childNodes->length; $j++) {
                         $grandchild = $child->childNodes->item($j);
                         if ($grandchild->localName === 'extension') {
-                            $parentType = $this->toLongName($grandchild->getAttribute('base'), $schemaElement);                        }
+                            $parentType = $this->toLongName($grandchild->getAttribute('base'), $schemaElement);
+                        }
 
                         if ($grandchild instanceof DOMElement) {
                             $fields = array_merge($fields, $this->findFields($grandchild, $schemaElement, $name));
@@ -376,7 +377,6 @@ class Parser
     /**
      * @param string $name
      * @param DOMElement $schemaElement
-
      * @return string
      */
     private function toLongName($name, DOMElement $schemaElement)
