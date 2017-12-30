@@ -39,8 +39,12 @@ class Writer
                 $fullChunks = explode('\\', $fullClassName);
                 $className = array_pop($fullChunks);
                 $namespace = trim(implode('\\', $fullChunks), '\\');
-
+                $flags = 0;
                 $parentClass = null;
+
+                if ($type->isAbstract()) {
+                    $flags |= ClassGenerator::FLAG_ABSTRACT;
+                }
 
                 if ($type->getParentName() !== null) {
                     $parentClass = '\\' . trim($this->namespace, '\\') . '\\' . trim(str_replace(':', '\\', $type->getParentName()), '\\');
@@ -49,7 +53,7 @@ class Writer
                 $class = new ClassGenerator(
                     $className,
                     $namespace,
-                    null,
+                    $flags,
                     $parentClass,
                     [],
                     []
