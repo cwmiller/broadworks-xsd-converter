@@ -84,23 +84,20 @@ class Writer
                     $property = (new PropertyGenerator())
                         ->setName($field->getName())
                         ->setFlags(PropertyGenerator::FLAG_PRIVATE)
-                        ->setDocBlock(new DocBlockGenerator(
-                            null,
-                            null,
-                            [new GenericTag('var', $phpType . '|null')]
-                        ));
+                        ->setDocBlock((new DocBlockGenerator())
+                            ->setTags([new GenericTag('var', $phpType . '|null')])
+                            ->setWordWrap(false));
 
                     $class->addPropertyFromGenerator($property);
 
                     // Create getter for field
                     $getter = (new MethodGenerator())
-                        ->setName(sprintf('get%s', ucwords($field->getName())))
                         ->setBody(sprintf('return $this->%s;', $field->getName()))
-                        ->setDocBlock(new DocBlockGenerator(
-                            'Getter for ' . $field->getName(),
-                            null,
-                            [new ReturnTag(['datatype' => $phpType . '|null'])]
-                        ));
+                        ->setName(sprintf('get%s', ucwords($field->getName())))
+                        ->setDocBlock((new DocBlockGenerator())
+                            ->setShortDescription('Getter for ' . $field->getName())
+                            ->setTags([new ReturnTag(['datatype' => $phpType . '|null'])])
+                            ->setWordWrap(false));
 
                     $class->addMethodFromGenerator($getter);
 
@@ -109,14 +106,13 @@ class Writer
                         ->setName(sprintf('set%s', ucwords($field->getName())))
                         ->setBody(sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()))
                         ->setParameter(['name' => $field->getName()])
-                        ->setDocBlock(new DocBlockGenerator(
-                            'Setter for ' . $field->getName(),
-                            '',
-                            [
+                        ->setDocBlock((new DocBlockGenerator())
+                            ->setShortDescription('Setter for ' . $field->getName())
+                            ->setTags([
                                 new ParamTag($field->getName(), [$phpType, 'null']),
                                 new ReturnTag(['datatype' => '$this'])
-                            ]
-                        ));
+                            ])
+                            ->setWordWrap(false));
 
                     $class->addMethodFromGenerator($setter);
                 }
