@@ -122,6 +122,8 @@ class Parser
             throw new \InvalidArgumentException('Element is not a complexType');
         }
 
+        // Some complex types are defined within another complex type. These types aren't given a name via a name attribute
+        // on the complex type's definition. Instead, the name of the element is appended to the name of the parent type.
         if ($forceName !== null) {
             $name = $forceName;
         } else {
@@ -145,12 +147,10 @@ class Parser
             $child = $element->childNodes->item($i);
 
             switch ($child->localName) {
-                case 'attribute':
+                case 'annotation':
                     $documentationElements = $child->getElementsByTagName('documentation');
                     if ($documentationElements->length > 0) {
-                        for ($j = 0; $j < $documentationElements->length; $j++) {
-                            $description [] = $documentationElements->item($j)->nodeValue;
-                        }
+                        $description = $documentationElements->item(0)->nodeValue;
                     }
                     break;
                 case 'complexContent':
@@ -177,7 +177,7 @@ class Parser
             ->setName($name)
             ->setAbstract($abstract)
             ->setParentName($parentType)
-            ->setDescription(trim(implode(PHP_EOL, array_filter($description))))
+            ->setDescription(trim($description))
             ->setFields($fields));
     }
 
@@ -218,9 +218,10 @@ class Parser
     private function handleField(DOMElement $element, DOMElement $schemaElement, $ownerName)
     {
         $fieldName = $element->getAttribute('name');
-        $isArray = $element->hasAttribute('maxOccurs');
+        $isArray = (int)$element->hasAttribute('maxOccurs') > 1;
+        $description = null;
 
-        // Field can specify a type via the "type attribute"
+        // Field can specify a type via the "type" attribute
         $typeName = $element->getAttribute('type');
 
         if ($typeName !== '') {
@@ -246,9 +247,21 @@ class Parser
             throw new RuntimeException('Could not determine type name for field');
         }
 
+        // Find if there's an annotation field containing a description
+        for ($i = 0; $i < $element->childNodes->length; $i++) {
+            $child = $element->childNodes->item($i);
+            if ($child instanceof DOMElement && $child->localName === 'annotation') {
+                $documentationElements = $child->getElementsByTagName('documentation');
+                if ($documentationElements->length > 0) {
+                    $description = $documentationElements->item(0)->nodeValue;
+                }
+            }
+        }
+
         return (new Field())
             ->setName($fieldName)
             ->setTypeName($typeName)
+            ->setDescription($description)
             ->setIsArray($isArray);
     }
 
@@ -310,6 +323,7 @@ class Parser
      * @param string $fieldName
      * @param string $ownerName
      * @return string
+     * @throws \RuntimeException
      * @throws \InvalidArgumentException
      */
     private function handleComplexField(DOMElement $element, DOMElement $schemaElement, $fieldName, $ownerName)
@@ -359,19 +373,17 @@ class Parser
         $restriction = $this->toLongName($restriction, $schemaElement);
 
         // Get description of type
-        $description = [];
+        $description = null;
         $documentationElements = $element->getElementsByTagName('documentation');
 
         if ($documentationElements->length > 0) {
-            for ($i = 0; $i < $documentationElements->length; $i++) {
-                $description [] = $documentationElements->item($i)->nodeValue;
-            }
+            $description = $documentationElements->item(0)->nodeValue;
         }
 
         $this->addType((new SimpleType())
             ->setName($name)
             ->setRestriction($restriction)
-            ->setDescription(trim(implode(PHP_EOL, array_filter($description)))));
+            ->setDescription(trim($description)));
     }
 
     /**

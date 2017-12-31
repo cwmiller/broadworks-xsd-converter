@@ -10,6 +10,9 @@ class Field
     /** @var string */
     protected $typeName;
 
+    /** @var string */
+    protected $description;
+
     /** @var bool */
     protected $isArray = false;
 
@@ -49,6 +52,23 @@ class Field
         return $this;
     }
 
+    /**
+     * @return string
+     */
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
+    /**
+     * @param string $description
+     * @return Field
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+        return $this;
+    }
 
     /**
      * @return bool

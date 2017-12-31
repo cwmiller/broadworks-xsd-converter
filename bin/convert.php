@@ -34,5 +34,5 @@ $debug = in_array('-d', $opts, true);
 $parser = new Parser($rootXsd, $debug);
 $types = $parser->parse();
 
-$writer = new Writer($outputDirectory, $rootNamespace);
+$writer = new Writer($outputDirectory, $rootNamespace, $debug);
 $writer->write($types);

@@ -21,10 +21,14 @@ class Writer
     /** @var string */
     private $namespace;
 
-    public function __construct($outDir, $namespace)
+    /** @var bool */
+    private $debug;
+
+    public function __construct($outDir, $namespace, $debug = false)
     {
         $this->outDir = $outDir;
         $this->namespace = $namespace;
+        $this->debug = $debug;
     }
 
     /**
@@ -85,6 +89,7 @@ class Writer
                         ->setName($field->getName())
                         ->setFlags(PropertyGenerator::FLAG_PRIVATE)
                         ->setDocBlock((new DocBlockGenerator())
+                            ->setLongDescription($field->getDescription())
                             ->setTags([new GenericTag('var', $phpType . '|null')])
                             ->setWordWrap(false));
 
@@ -96,6 +101,7 @@ class Writer
                         ->setName(sprintf('get%s', ucwords($field->getName())))
                         ->setDocBlock((new DocBlockGenerator())
                             ->setShortDescription('Getter for ' . $field->getName())
+                            ->setLongDescription($field->getDescription())
                             ->setTags([new ReturnTag(['datatype' => $phpType . '|null'])])
                             ->setWordWrap(false));
 
@@ -108,6 +114,7 @@ class Writer
                         ->setParameter(['name' => $field->getName()])
                         ->setDocBlock((new DocBlockGenerator())
                             ->setShortDescription('Setter for ' . $field->getName())
+                            ->setLongDescription($field->getDescription())
                             ->setTags([
                                 new ParamTag($field->getName(), [$phpType, 'null']),
                                 new ReturnTag(['datatype' => '$this'])
@@ -124,17 +131,19 @@ class Writer
                     . str_replace('\\', DIRECTORY_SEPARATOR, $qualifiedClassName)
                     . '.php';
 
+                if ($this->debug) {
+                    echo sprintf('Writing %s', $outputPath) . PHP_EOL;
+                }
+
                 // Ensure the destination directory exists
                 $dirPath = dirname($outputPath);
                 if (!is_dir($dirPath) && !mkdir($dirPath, null, true)) {
-                    echo 'Unable to create directory ' . $dirPath . PHP_EOL;
-                    exit(-1);
+                    throw new RuntimeException('Unable to create directory ' . $dirPath);
                 }
 
                 $file = new FileGenerator(['classes' => [$class]]);
                 if (!file_put_contents($outputPath, $file->generate())) {
-                    echo 'Unable to write file ' . $outputPath . PHP_EOL;
-                    exit(-1);
+                    throw new RuntimeException('Unable to write file ' . $outputPath);
                 }
             }
         }
