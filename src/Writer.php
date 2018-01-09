@@ -90,7 +90,10 @@ class Writer
                         ->setFlags(PropertyGenerator::FLAG_PRIVATE)
                         ->setDocBlock((new DocBlockGenerator())
                             ->setLongDescription($field->getDescription())
-                            ->setTags([new GenericTag('var', $phpType . '|null')])
+                            ->setTags([
+                                new GenericTag('ElementName', $field->getName()),
+                                new GenericTag('var', $phpType . '|null')
+                            ])
                             ->setWordWrap(false));
 
                     $class->addPropertyFromGenerator($property);
@@ -102,7 +105,10 @@ class Writer
                         ->setDocBlock((new DocBlockGenerator())
                             ->setShortDescription('Getter for ' . $field->getName())
                             ->setLongDescription($field->getDescription())
-                            ->setTags([new ReturnTag(['datatype' => $phpType . '|null'])])
+                            ->setTags([
+                                new GenericTag('ElementName', $field->getName()),
+                                new ReturnTag(['datatype' => $phpType . '|null'])
+                            ])
                             ->setWordWrap(false));
 
                     $class->addMethodFromGenerator($getter);
@@ -116,6 +122,7 @@ class Writer
                             ->setShortDescription('Setter for ' . $field->getName())
                             ->setLongDescription($field->getDescription())
                             ->setTags([
+                                new GenericTag('ElementName', $field->getName()),
                                 new ParamTag($field->getName(), [$phpType, 'null']),
                                 new ReturnTag(['datatype' => '$this'])
                             ])
