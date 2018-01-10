@@ -84,15 +84,28 @@ class Writer
                         throw new RuntimeException('Unable to find type ' . $field->getTypeName());
                     }
 
+                    $propertyPhpType = $field->isArray()
+                        ? $phpType . '[]'
+                        : $phpType;
+
+                    if (!$field->isArray()) {
+                        $propertyPhpType .= '|null';
+                    }
+
+                    $defaultValue = $field->isArray()
+                        ? []
+                        : null;
+
                     // Create private property for field
                     $property = (new PropertyGenerator())
                         ->setName($field->getName())
                         ->setFlags(PropertyGenerator::FLAG_PRIVATE)
+                        ->setDefaultValue($defaultValue)
                         ->setDocBlock((new DocBlockGenerator())
                             ->setLongDescription($field->getDescription())
                             ->setTags([
                                 new GenericTag('ElementName', $field->getName()),
-                                new GenericTag('var', $phpType . '|null')
+                                new GenericTag('var', $propertyPhpType)
                             ])
                             ->setWordWrap(false));
 
@@ -107,13 +120,13 @@ class Writer
                             ->setLongDescription($field->getDescription())
                             ->setTags([
                                 new GenericTag('ElementName', $field->getName()),
-                                new ReturnTag(['datatype' => $phpType . '|null'])
+                                new ReturnTag(['datatype' => $propertyPhpType])
                             ])
                             ->setWordWrap(false));
 
                     $class->addMethodFromGenerator($getter);
 
-                    // Create getter for field
+                    // Create setter for field
                     $setter = (new MethodGenerator())
                         ->setName(sprintf('set%s', ucwords($field->getName())))
                         ->setBody(sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()))
@@ -123,12 +136,31 @@ class Writer
                             ->setLongDescription($field->getDescription())
                             ->setTags([
                                 new GenericTag('ElementName', $field->getName()),
-                                new ParamTag($field->getName(), [$phpType, 'null']),
+                                new ParamTag($field->getName(), $propertyPhpType),
                                 new ReturnTag(['datatype' => '$this'])
                             ])
                             ->setWordWrap(false));
 
                     $class->addMethodFromGenerator($setter);
+
+                    // Create adder for field if array
+                    if ($field->isArray()) {
+                        $adder = (new MethodGenerator())
+                            ->setName(sprintf('add%s', ucwords($field->getName())))
+                            ->setBody(sprintf("\$this->%s []= $%s;\nreturn \$this;", $field->getName(), $field->getName()))
+                            ->setParameter(['name' => $field->getName()])
+                            ->setDocBlock((new DocBlockGenerator())
+                                ->setShortDescription('Adder for ' . $field->getName())
+                                ->setLongDescription($field->getDescription())
+                                ->setTags([
+                                    new GenericTag('ElementName', $field->getName()),
+                                    new ParamTag($field->getName(), $phpType),
+                                    new ReturnTag(['datatype' => '$this'])
+                                ])
+                                ->setWordWrap(false));
+
+                        $class->addMethodFromGenerator($adder);
+                    }
                 }
 
                 // Convert fully qualified class name into PSR-4 directory structure
@@ -187,10 +219,6 @@ class Writer
 
                 }
             }
-        }
-
-        if ($field !== null && $field->isArray()) {
-            $phpType .= '[]';
         }
 
         return $phpType;

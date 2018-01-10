@@ -218,7 +218,8 @@ class Parser
     private function handleField(DOMElement $element, DOMElement $schemaElement, $ownerName)
     {
         $fieldName = $element->getAttribute('name');
-        $isArray = (int)$element->hasAttribute('maxOccurs') > 1;
+        $maxOccurs = $element->hasAttribute('maxOccurs');
+        $isArray = $maxOccurs === 'unbounded' || (int)$maxOccurs > 0;
         $description = null;
 
         // Field can specify a type via the "type" attribute
