@@ -45,18 +45,28 @@ class Parser
      */
     private function parseFile($filePath)
     {
-        $filePath = realpath($filePath);
+        $fileRealPath = realpath($filePath);
 
-        if (!in_array($filePath, $this->readFiles, true) && is_file($filePath) && is_readable($filePath)) {
+        if (($fileRealPath === false) || !is_file($fileRealPath)) {
+            echo sprintf('File %s does not exist.', $filePath) . PHP_EOL;
+            exit(-1);
+        }
+
+        if (!is_readable($fileRealPath)) {
+            echo sprintf('File %s is not readable.', $filePath) . PHP_EOL;
+            exit(-1);
+        }
+
+        if (!in_array($fileRealPath, $this->readFiles, true)) {
             if ($this->debug) {
                 echo sprintf('Reading %s', $filePath) . PHP_EOL;
             }
 
-            $this->readFiles [] = $filePath;
+            $this->readFiles [] = $fileRealPath;
 
             /** @var DOMDocument $document */
             $document = new DOMDocument();
-            @$document->load($filePath);
+            @$document->load($fileRealPath);
 
             $schemaElements = $document->getElementsByTagName('schema');
             if ($schemaElements->length === 1) {
@@ -68,7 +78,7 @@ class Parser
                     switch ($childElement->localName) {
                         case 'import':
                         case 'include':
-                            $pathToImportFile = dirname($filePath) . DIRECTORY_SEPARATOR . $childElement->getAttribute('schemaLocation');
+                            $pathToImportFile = dirname($fileRealPath) . DIRECTORY_SEPARATOR . $childElement->getAttribute('schemaLocation');
                             $this->parseFile($pathToImportFile);
                             break;
                         case 'complexType':
