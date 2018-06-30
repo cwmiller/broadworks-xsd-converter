@@ -10,6 +10,9 @@ abstract class Type
     /** @var string */
     protected $description;
 
+    /** @var Tag[] */
+    protected $tags = [];
+
     /**
      * @return string
      */
@@ -43,6 +46,24 @@ abstract class Type
     public function setDescription($description)
     {
         $this->description = $description;
+        return $this;
+    }
+
+    /**
+     * @return Tag[]
+     */
+    public function getTags()
+    {
+        return $this->tags;
+    }
+
+    /**
+     * @param Tag[] $tags
+     * @return $this
+     */
+    public function setTags($tags)
+    {
+        $this->tags = $tags;
         return $this;
     }
 }

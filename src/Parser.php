@@ -149,7 +149,8 @@ class Parser
         // Check if type is abstract
         $abstract = $element->getAttribute('abstract') === 'true';
 
-        $description = [];
+        $description = '';
+        $tags = [];
         $fields = [];
         $parentType = null;
 
@@ -161,6 +162,15 @@ class Parser
                     $documentationElements = $child->getElementsByTagName('documentation');
                     if ($documentationElements->length > 0) {
                         $description = $documentationElements->item(0)->nodeValue;
+
+                        // Create @see tags for all Request and Response classes found in the documentation
+                        if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9]+)?/', $description, $docTypeMatches)) {
+                            if (count($docTypeMatches[0]) > 0) {
+                                foreach ($docTypeMatches[0] as $docTypeMatch) {
+                                    $tags[] = new Tag('see', $docTypeMatch);
+                                }
+                            }
+                        }
                     }
                     break;
                 case 'complexContent':
@@ -179,7 +189,6 @@ class Parser
                     if ($child instanceof DOMElement) {
                         $fields = array_merge($fields, $this->findFields($child, $schemaElement, $name));
                     }
-
             }
         }
 
@@ -188,6 +197,7 @@ class Parser
             ->setAbstract($abstract)
             ->setParentName($parentType)
             ->setDescription(trim($description))
+            ->setTags($tags)
             ->setFields($fields));
     }
 

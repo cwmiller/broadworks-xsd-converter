@@ -75,6 +75,9 @@ class Writer
                     ->setDocBlock(DocBlockGenerator::fromArray([
                         'shortDescription' => $unqualifiedClassName,
                         'longDescription' => $type->getDescription(),
+                        'tags' => array_map(function($tag) {
+                            return new GenericTag($tag->getName(), $tag->getValue());
+                        }, $type->getTags())
                     ]));
 
                 foreach ($type->getFields() as $field) {
