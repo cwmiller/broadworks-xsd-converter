@@ -5,6 +5,9 @@ namespace CWM\BroadWorksXsdConverter;
 abstract class Type
 {
     /** @var string */
+    protected $filePath;
+
+    /** @var string */
     protected $name;
 
     /** @var string */
@@ -12,6 +15,24 @@ abstract class Type
 
     /** @var Tag[] */
     protected $tags = [];
+
+    /**
+     * @return string
+     */
+    public function getFilePath()
+    {
+        return $this->filePath;
+    }
+
+    /**
+     * @param string $filePath
+     * @return $this
+     */
+    public function setFilePath($filePath)
+    {
+        $this->filePath = $filePath;
+        return $this;
+    }
 
     /**
      * @return string

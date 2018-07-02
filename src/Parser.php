@@ -20,6 +20,10 @@ class Parser
     /** @var Type[] */
     private $types = [];
 
+    /**
+     * @param string $rootFile
+     * @param bool $debug
+     */
     public function __construct($rootFile, $debug = false)
     {
         $this->rootFile = $rootFile;
@@ -29,7 +33,6 @@ class Parser
     /**
      * @return Type[]
      * @throws \InvalidArgumentException
-     * @throws \RuntimeException
      */
     public function parse()
     {
@@ -40,7 +43,6 @@ class Parser
 
     /**
      * @param string $filePath
-     * @throws \RuntimeException
      * @throws \InvalidArgumentException
      */
     private function parseFile($filePath)
@@ -82,11 +84,11 @@ class Parser
                             $this->parseFile($pathToImportFile);
                             break;
                         case 'complexType':
-                            $this->handleComplexType($childElement, $schemaElement);
+                            $this->handleComplexType($childElement, $schemaElement, $fileRealPath, null);
 
                             break;
                         case 'simpleType':
-                            $this->handleSimpleType($childElement, $schemaElement);
+                            $this->handleSimpleType($childElement, $schemaElement, $fileRealPath);
                             break;
                     }
                 }
@@ -122,11 +124,11 @@ class Parser
     /**
      * @param DOMElement $element
      * @param DOMElement $schemaElement
-     * @param string $forceName
-     * @throws \RuntimeException
+     * @param $filePath
+     * @param string|null $forceName
      * @throws \InvalidArgumentException
      */
-    private function handleComplexType(DOMElement $element, DOMElement $schemaElement, $forceName = null)
+    private function handleComplexType(DOMElement $element, DOMElement $schemaElement, $filePath, $forceName = null)
     {
         if ($element->localName !== 'complexType') {
             throw new \InvalidArgumentException('Element is not a complexType');
@@ -153,6 +155,7 @@ class Parser
         $tags = [];
         $fields = [];
         $parentType = null;
+        $responseTypes = [];
 
         for ($i = 0; $i < $element->childNodes->length; $i++) {
             $child = $element->childNodes->item($i);
@@ -164,11 +167,24 @@ class Parser
                         $description = $documentationElements->item(0)->nodeValue;
 
                         // Create @see tags for all Request and Response classes found in the documentation
-                        if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9]+)?/', $description, $docTypeMatches)) {
+                        if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9sp]+)?/', $description, $docTypeMatches)) {
                             if (count($docTypeMatches[0]) > 0) {
                                 foreach ($docTypeMatches[0] as $docTypeMatch) {
                                     $tags[] = new Tag('see', $docTypeMatch);
                                 }
+                            }
+                        }
+
+                        // Find any response objects listed in the documentation
+                        if (preg_match('/The response is.*/', $description, $responseMatches)) {
+                            if (preg_match_all('/[a-zA-Z0-9]+Response([0-9sp]+)?/', $responseMatches[0], $responseMatches)) {
+                                $responseTypes = array_map(function($responseMatch) {
+                                    if ($responseMatch === 'SuccessResponse' || $responseMatch === 'ErrorResponse') {
+                                        $responseMatch = ':C:' . $responseMatch;
+                                    }
+
+                                    return $responseMatch;
+                                }, $responseMatches[0]);
                             }
                         }
                     }
@@ -181,33 +197,37 @@ class Parser
                         }
 
                         if ($grandchild instanceof DOMElement) {
-                            $fields = array_merge($fields, $this->findFields($grandchild, $schemaElement, $name));
+                            $fields = array_merge($fields, $this->findFields($grandchild, $schemaElement, $filePath, $name));
                         }
                     }
                     break;
                 default:
                     if ($child instanceof DOMElement) {
-                        $fields = array_merge($fields, $this->findFields($child, $schemaElement, $name));
+                        $fields = array_merge($fields, $this->findFields($child, $schemaElement, $filePath, $name));
                     }
             }
         }
 
         $this->addType((new ComplexType())
+            ->setFilePath($filePath)
             ->setName($name)
             ->setAbstract($abstract)
             ->setParentName($parentType)
             ->setDescription(trim($description))
             ->setTags($tags)
+            ->setResponseTypes($responseTypes)
             ->setFields($fields));
     }
 
     /**
      * @param DOMElement $parent
      * @param DOMElement $schemaElement
+     * @param string $filePath
      * @param string $ownerName
      * @return Field[]
+     * @throws \InvalidArgumentException
      */
-    private function findFields(DOMElement $parent, DOMElement $schemaElement, $ownerName)
+    private function findFields(DOMElement $parent, DOMElement $schemaElement, $filePath, $ownerName)
     {
         $fields = [];
 
@@ -216,10 +236,10 @@ class Parser
 
             if ($child instanceof DOMElement) {
                 if ($child->localName === 'element') {
-                    $field = $this->handleField($child, $schemaElement, $ownerName);
+                    $field = $this->handleField($child, $schemaElement, $filePath, $ownerName);
                     $fields[$field->getName()] = $field;
                 } else {
-                    $fields = array_merge($fields, $this->findFields($child, $schemaElement, $ownerName));
+                    $fields = array_merge($fields, $this->findFields($child, $schemaElement, $filePath, $ownerName));
                 }
             }
         }
@@ -230,12 +250,12 @@ class Parser
     /**
      * @param DOMElement $element
      * @param DOMElement $schemaElement
+     * @param string $filePath
      * @param string $ownerName
      * @return Field
      * @throws \InvalidArgumentException
-     * @throws \RuntimeException
      */
-    private function handleField(DOMElement $element, DOMElement $schemaElement, $ownerName)
+    private function handleField(DOMElement $element, DOMElement $schemaElement, $filePath, $ownerName)
     {
         $fieldName = $element->getAttribute('name');
         $maxOccurs = $element->hasAttribute('maxOccurs');
@@ -256,7 +276,7 @@ class Parser
                 // If not a simple type, it can be a complex type if a "complexType" element exists
                 $complexTypeElements = $element->getElementsByTagName('complexType');
                 if ($complexTypeElements->length > 0) {
-                    $typeName = $this->handleComplexField($element, $schemaElement, $fieldName, $ownerName);
+                    $typeName = $this->handleComplexField($element, $schemaElement, $filePath, $fieldName, $ownerName);
                 } else {
                     // No explicit type was put on the element. Default to a string
                     $typeName = 'http://www.w3.org/2001/XMLSchema:string';
@@ -290,7 +310,6 @@ class Parser
      * @param DOMElement $element
      * @param DOMElement $schemaElement
      * @return string
-     * @throws \RuntimeException
      */
     private function handleTypedField(DOMElement $element, DOMElement $schemaElement)
     {
@@ -310,7 +329,6 @@ class Parser
      * @param string $ownerName
      * @return string
      * @throws \InvalidArgumentException
-     * @throws \RuntimeException
      */
     private function handleSimpleField(DOMElement $element, DOMElement $schemaElement, $fieldName, $ownerName)
     {
@@ -341,20 +359,20 @@ class Parser
     /**
      * @param DOMElement $element
      * @param DOMElement $schemaElement
+     * @param string $filePath
      * @param string $fieldName
      * @param string $ownerName
      * @return string
-     * @throws \RuntimeException
      * @throws \InvalidArgumentException
      */
-    private function handleComplexField(DOMElement $element, DOMElement $schemaElement, $fieldName, $ownerName)
+    private function handleComplexField(DOMElement $element, DOMElement $schemaElement, $filePath, $fieldName, $ownerName)
     {
         // Create a new simple type to represent this field
         $typeName = $ownerName . ':' . ucwords($fieldName);
 
         $complexTypeElements = $element->getElementsByTagName('complexType');
         $complexTypeElement = $complexTypeElements->item(0);
-        $this->handleComplexType($complexTypeElement, $schemaElement, $typeName);
+        $this->handleComplexType($complexTypeElement, $schemaElement, $filePath, $typeName);
 
         return $this->toLongName($typeName, $schemaElement);
     }
@@ -362,10 +380,10 @@ class Parser
     /**
      * @param DOMElement $element
      * @param DOMElement $schemaElement
-     * @throws \RuntimeException
+     * @param string $filePath
      * @throws \InvalidArgumentException
      */
-    private function handleSimpleType(DOMElement $element, DOMElement $schemaElement)
+    private function handleSimpleType(DOMElement $element, DOMElement $schemaElement, $filePath)
     {
         if ($element->localName !== 'simpleType') {
             throw new \InvalidArgumentException('Element is not a simpleType');
@@ -402,6 +420,7 @@ class Parser
         }
 
         $this->addType((new SimpleType())
+            ->setFilePath($filePath)
             ->setName($name)
             ->setRestriction($restriction)
             ->setDescription(trim($description)));

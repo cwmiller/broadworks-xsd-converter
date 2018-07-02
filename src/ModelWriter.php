@@ -13,7 +13,7 @@ use Zend\Code\Generator\FileGenerator;
 use Zend\Code\Generator\MethodGenerator;
 use Zend\Code\Generator\PropertyGenerator;
 
-class Writer
+class ModelWriter
 {
     /** @var string */
     private $outDir;

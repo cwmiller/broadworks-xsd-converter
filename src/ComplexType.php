@@ -13,6 +13,9 @@ class ComplexType extends Type
     /** @var string */
     protected $parentName;
 
+    /** @var string[] */
+    protected $responseTypes = [];
+
     /**
      * @return Field[]
      */
@@ -74,6 +77,24 @@ class ComplexType extends Type
     public function setParentName($parentName)
     {
         $this->parentName = $parentName;
+        return $this;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getResponseTypes()
+    {
+        return $this->responseTypes;
+    }
+
+    /**
+     * @param string[] $responseTypes
+     * @return $this
+     */
+    public function setResponseTypes($responseTypes)
+    {
+        $this->responseTypes = $responseTypes;
         return $this;
     }
 }
