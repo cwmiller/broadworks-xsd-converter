@@ -167,7 +167,7 @@ class Parser
                         $description = $documentationElements->item(0)->nodeValue;
 
                         // Create @see tags for all Request and Response classes found in the documentation
-                        if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9sp]+)?/', $description, $docTypeMatches)) {
+                        if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smp]+)?/', $description, $docTypeMatches)) {
                             if (count($docTypeMatches[0]) > 0) {
                                 foreach ($docTypeMatches[0] as $docTypeMatch) {
                                     $tags[] = new Tag('see', $docTypeMatch);
@@ -177,7 +177,7 @@ class Parser
 
                         // Find any response objects listed in the documentation
                         if (preg_match('/The response is.*/', $description, $responseMatches)) {
-                            if (preg_match_all('/[a-zA-Z0-9]+Response([0-9sp]+)?/', $responseMatches[0], $responseMatches)) {
+                            if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smp]+)?/', $responseMatches[0], $responseMatches)) {
                                 $responseTypes = array_map(function($responseMatch) {
                                     if ($responseMatch === 'SuccessResponse' || $responseMatch === 'ErrorResponse') {
                                         $responseMatch = ':C:' . $responseMatch;
