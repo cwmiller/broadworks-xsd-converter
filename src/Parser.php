@@ -179,12 +179,17 @@ class Parser
                         if (preg_match('/The response is.*/', $description, $responseMatches)) {
                             if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smp]+)?/', $responseMatches[0], $responseMatches)) {
                                 $responseTypes = array_map(function($responseMatch) {
-                                    if ($responseMatch === 'SuccessResponse' || $responseMatch === 'ErrorResponse') {
+                                    if ($responseMatch === 'SuccessResponse') {
                                         $responseMatch = ':C:' . $responseMatch;
                                     }
 
                                     return $responseMatch;
                                 }, $responseMatches[0]);
+
+                                // Remove ErrorResponse from the return types
+                                $responseTypes = array_filter($responseTypes, function($type) {
+                                    return $type !== 'ErrorResponse';
+                                });
                             }
                         }
                     }

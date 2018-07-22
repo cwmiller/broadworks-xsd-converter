@@ -5,6 +5,7 @@ namespace CWM\BroadWorksXsdConverter;
 use RuntimeException;
 use Zend\Code\Generator\DocBlock\Tag\ParamTag;
 use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
+use Zend\Code\Generator\DocBlock\Tag\ThrowsTag;
 use Zend\Code\Generator\DocBlockGenerator;
 use Zend\Code\Generator\FileGenerator;
 use Zend\Code\Generator\MethodGenerator;
@@ -73,6 +74,7 @@ class TraitWriter
                 }, $type->getResponseTypes());
 
                 $trait->addUse($qualifiedRequestType);
+                $trait->addUse('CWM\BroadWorksConnector\Ocip\ErrorResponseException');
                 foreach ($responseTypes as $responseType) {
                     $trait->addUse($responseType['qualified']);
                 }
@@ -86,7 +88,8 @@ class TraitWriter
                             new ParamTag('request', $unqualifiedRequestType),
                             new ReturnTag(['datatype' => implode('|', array_map(function($responseType) {
                                 return $responseType['unqualified'];
-                            }, $responseTypes))])
+                            }, $responseTypes))]),
+                            new ThrowsTag('ErrorResponseException')
                         ])
                         ->setWordWrap(false));
 
