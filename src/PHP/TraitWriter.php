@@ -1,6 +1,6 @@
 <?php
 
-namespace CWM\BroadWorksXsdConverter;
+namespace CWM\BroadWorksXsdConverter\PHP;
 
 use RuntimeException;
 use Zend\Code\Generator\DocBlock\Tag\ParamTag;

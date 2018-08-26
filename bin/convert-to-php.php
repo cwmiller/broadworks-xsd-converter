@@ -2,8 +2,8 @@
 <?php
 
 use CWM\BroadWorksXsdConverter\Parser;
-use CWM\BroadWorksXsdConverter\ModelWriter;
-use CWM\BroadWorksXsdConverter\TraitWriter;
+use CWM\BroadWorksXsdConverter\PHP\ModelWriter;
+use CWM\BroadWorksXsdConverter\PHP\TraitWriter;
 
 if (is_file(__DIR__ . '/../../../autoload.php')) {
     require __DIR__ . '/../../../autoload.php';

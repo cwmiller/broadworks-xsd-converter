@@ -55,6 +55,15 @@ abstract class Type
     /**
      * @return string
      */
+    public function getUnqualifiedName()
+    {
+        $segments = explode(':', $this->name);
+        return array_pop($segments);
+    }
+
+    /**
+     * @return string
+     */
     public function getDescription()
     {
         return $this->description;

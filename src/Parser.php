@@ -128,7 +128,7 @@ class Parser
      * @param string|null $forceName
      * @throws \InvalidArgumentException
      */
-    private function handleComplexType(DOMElement $element, DOMElement $schemaElement, $filePath, $forceName = null)
+    private function handleComplexType(DOMElement $element, DOMElement $schemaElement, $filePath, $forceName = null, $ownerName = null)
     {
         if ($element->localName !== 'complexType') {
             throw new \InvalidArgumentException('Element is not a complexType');
@@ -216,6 +216,7 @@ class Parser
         $this->addType((new ComplexType())
             ->setFilePath($filePath)
             ->setName($name)
+            ->setOwnerName($ownerName)
             ->setAbstract($abstract)
             ->setParentName($parentType)
             ->setDescription(trim($description))
@@ -377,7 +378,7 @@ class Parser
 
         $complexTypeElements = $element->getElementsByTagName('complexType');
         $complexTypeElement = $complexTypeElements->item(0);
-        $this->handleComplexType($complexTypeElement, $schemaElement, $filePath, $typeName);
+        $this->handleComplexType($complexTypeElement, $schemaElement, $filePath, $typeName, $ownerName);
 
         return $this->toLongName($typeName, $schemaElement);
     }

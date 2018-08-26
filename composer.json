@@ -17,6 +17,7 @@
   "require": {
     "php": ">=5.4.0",
     "ext-xml": "*",
+    "ext-dom": "*",
     "zendframework/zend-code": "^3.1"
   }
 }
