@@ -60,6 +60,8 @@ class ModelWriter
                     ->setClassName($unqualifiedClassName)
                     ->setParentClassName($parentUnqualifiedClassName);
 
+                $template->addUsing('System.Xml.Serialization');
+
                 if ($parentNamespace !== null) {
                     $template->addUsing($parentNamespace);
                 }
@@ -75,14 +77,12 @@ class ModelWriter
                     $type = array_pop($typeSegments);
                     $typeNamespace = implode('.', $typeSegments);
 
-                    $template->addUsing('System.Xml.Serialization');
-
                     if ($typeNamespace !== $namespace && $typeNamespace !== '') {
                         $template->addUsing($typeNamespace);
                     }
 
                     if ($field->isArray()) {
-                        $type = 'ICollection<' . $type . '>';
+                        $type = 'List<' . $type . '>';
 
                         $template->addUsing('System.Collections.Generic');
                     }
