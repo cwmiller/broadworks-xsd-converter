@@ -2,6 +2,8 @@
 
 namespace CWM\BroadWorksXsdConverter\PHP;
 
+use CWM\BroadWorksXsdConverter\ComplexType;
+use CWM\BroadWorksXsdConverter\Type;
 use RuntimeException;
 use Zend\Code\Generator\DocBlock\Tag\ParamTag;
 use Zend\Code\Generator\DocBlock\Tag\ReturnTag;

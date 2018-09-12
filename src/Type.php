@@ -64,6 +64,16 @@ abstract class Type
     /**
      * @return string
      */
+    public function getNamespace()
+    {
+        $segments = explode(':', $this->name);
+        array_pop($segments);
+        return implode(':', $segments);
+    }
+
+    /**
+     * @return string
+     */
     public function getDescription()
     {
         return $this->description;
