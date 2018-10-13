@@ -203,10 +203,20 @@ class ModelWriter
         $class->addMethodFromGenerator($getter);
 
         // Create setter for field
+        $setterTypeHint = null;
+
+        if ($field->isArray()) {
+            $setterTypeHint = 'array';
+        } else if (!self::isScalar($phpType)) {
+            $setterTypeHint = $phpType;
+        }
+
         $setter = (new MethodGenerator())
             ->setName(sprintf('set%s', ucwords($field->getName())))
             ->setBody(sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()))
-            ->setParameter(['name' => $field->getName()])
+            ->setParameter(array_merge([
+                'name' => $field->getName(),
+            ], $setterTypeHint !== null ? ['type' => $setterTypeHint] : []))
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Setter for ' . $field->getName())
                 ->setLongDescription($field->getDescription())
@@ -224,7 +234,9 @@ class ModelWriter
             $adder = (new MethodGenerator())
                 ->setName(sprintf('add%s', ucwords($field->getName())))
                 ->setBody(sprintf("\$this->%s []= $%s;\nreturn \$this;", $field->getName(), $field->getName()))
-                ->setParameter(['name' => $field->getName()])
+                ->setParameter(array_merge([
+                    'name' => $field->getName(),
+                ], self::isScalar($phpType) ? ['type' => $phpType] : []))
                 ->setDocBlock((new DocBlockGenerator())
                     ->setShortDescription('Adder for ' . $field->getName())
                     ->setLongDescription($field->getDescription())
@@ -361,5 +373,15 @@ class ModelWriter
         }
 
         return $phpType;
+    }
+
+    private static function isScalar($typeName)
+    {
+        return in_array($typeName, [
+            'string',
+            'int',
+            'bool',
+            'float'
+        ], true);
     }
 }
