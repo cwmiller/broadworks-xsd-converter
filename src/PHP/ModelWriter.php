@@ -11,6 +11,7 @@ use CWM\BroadWorksXsdConverter\Type;
 use RuntimeException;
 use Zend\Code\Generator\ClassGenerator;
 use Zend\Code\Generator\DocBlock\Tag\GenericTag;
+use Zend\Code\Generator\DocBlock\Tag\MethodTag;
 use Zend\Code\Generator\DocBlock\Tag\ParamTag;
 use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
 use Zend\Code\Generator\DocBlockGenerator;
@@ -28,6 +29,8 @@ class ModelWriter
 
     /** @var bool */
     private $debug;
+
+    const ENUM_BASE_TYPE = '\MyCLabs\Enum\Enum';
 
     /**
      * @param string $outDir The root directory to write files to.
@@ -127,103 +130,113 @@ class ModelWriter
             ->setDocBlock(DocBlockGenerator::fromArray([
                 'shortDescription' => $unqualifiedClassName,
                 'longDescription' => $type->getDescription(),
-                'tags' => array_map(function($tag) {
-                    /** @var Tag $tag */
-                    return new GenericTag($tag->getName(), $tag->getValue());
-                }, $type->getTags())
+                'tags' => array_map(function($reference) {
+                    return new GenericTag('see', $reference);
+                }, $type->getReferences())
             ]));
 
         // Create property, getter, and setter for each field on the type
         foreach ($type->getFields() as $field) {
-            list($phpType, $enumType) = $this->determinePhpType($field, $allTypes);
-
-            if ($phpType === null) {
-                throw new RuntimeException('Unable to find type ' . $field->getTypeName());
-            }
-
-            // If the field is an array, then adjust the phpdoc to indicate it is an array
-            $propertyPhpType = $field->isArray()
-                ? $phpType . '[]'
-                : $phpType;
-
-            // If the field is not an array, then the field can be null if it is not set.
-            if (!$field->isArray()) {
-                $propertyPhpType .= '|null';
-            }
-
-            // If the field is an array, then the default value is a blank array. If not, then it's null.
-            $defaultValue = $field->isArray()
-                ? []
-                : null;
-
-            // Create private property for field
-            $property = (new PropertyGenerator())
-                ->setName($field->getName())
-                ->setFlags(PropertyGenerator::FLAG_PRIVATE)
-                ->setDefaultValue($defaultValue)
-                ->setDocBlock((new DocBlockGenerator())
-                    ->setLongDescription($field->getDescription())
-                    ->setTags(array_merge([
-                        new GenericTag('ElementName', $field->getName()),
-                        new GenericTag('var', $propertyPhpType)
-                    ], $enumType !== null ? [new GenericTag('see', $enumType)] : []))
-                    ->setWordWrap(false));
-
-            $class->addPropertyFromGenerator($property);
-
-            // Create getter for field
-            $getter = (new MethodGenerator())
-                ->setBody(sprintf('return $this->%s;', $field->getName()))
-                ->setName(sprintf('get%s', ucwords($field->getName())))
-                ->setDocBlock((new DocBlockGenerator())
-                    ->setShortDescription('Getter for ' . $field->getName())
-                    ->setLongDescription($field->getDescription())
-                    ->setTags(array_merge([
-                        new GenericTag('ElementName', $field->getName()),
-                        new ReturnTag(['datatype' => $propertyPhpType])
-                    ], $enumType !== null ? [new GenericTag('see', $enumType)] : []))
-                    ->setWordWrap(false));
-
-            $class->addMethodFromGenerator($getter);
-
-            // Create setter for field
-            $setter = (new MethodGenerator())
-                ->setName(sprintf('set%s', ucwords($field->getName())))
-                ->setBody(sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()))
-                ->setParameter(['name' => $field->getName()])
-                ->setDocBlock((new DocBlockGenerator())
-                    ->setShortDescription('Setter for ' . $field->getName())
-                    ->setLongDescription($field->getDescription())
-                    ->setTags(array_merge([
-                        new GenericTag('ElementName', $field->getName()),
-                        new ParamTag($field->getName(), $propertyPhpType),
-                        new ReturnTag(['datatype' => '$this'])
-                    ], $enumType !== null ? [new GenericTag('see', $enumType)] : []))
-                    ->setWordWrap(false));
-
-            $class->addMethodFromGenerator($setter);
-
-            // Create adder for field if array
-            if ($field->isArray()) {
-                $adder = (new MethodGenerator())
-                    ->setName(sprintf('add%s', ucwords($field->getName())))
-                    ->setBody(sprintf("\$this->%s []= $%s;\nreturn \$this;", $field->getName(), $field->getName()))
-                    ->setParameter(['name' => $field->getName()])
-                    ->setDocBlock((new DocBlockGenerator())
-                        ->setShortDescription('Adder for ' . $field->getName())
-                        ->setLongDescription($field->getDescription())
-                        ->setTags([
-                            new GenericTag('ElementName', $field->getName()),
-                            new ParamTag($field->getName(), $phpType),
-                            new ReturnTag(['datatype' => '$this'])
-                        ])
-                        ->setWordWrap(false));
-
-                $class->addMethodFromGenerator($adder);
-            }
+            $this->generateProperty($class, $field, $allTypes);
         }
 
         return $class;
+    }
+
+    /**
+     * @param ClassGenerator $class
+     * @param Field $field
+     * @param array $allTypes
+     * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
+     */
+    private function generateProperty(ClassGenerator $class, Field $field, array $allTypes)
+    {
+        $phpType = $this->determinePhpType($field, $allTypes);
+
+        if ($phpType === null) {
+            throw new RuntimeException('Unable to find type ' . $field->getTypeName());
+        }
+
+        $propertyPhpDoc = $phpType;
+
+        // If the field is an array, then adjust the phpdoc to indicate it is an array
+        if ($field->isArray()) {
+            $propertyPhpDoc .= '[]';
+        } else {
+            // If the field is not an array, then the field can be null if it is not set.
+            $propertyPhpDoc .= '|null';
+        }
+
+        // If the field is an array, then the default value is a blank array. If not, then it's null.
+        $defaultValue = $field->isArray()
+            ? []
+            : null;
+
+        // Create private property for field
+        $property = (new PropertyGenerator())
+            ->setName($field->getName())
+            ->setFlags(PropertyGenerator::FLAG_PRIVATE)
+            ->setDefaultValue($defaultValue)
+            ->setDocBlock((new DocBlockGenerator())
+                ->setLongDescription($field->getDescription())
+                ->setTags([
+                    new GenericTag('ElementName', $field->getName()),
+                    new GenericTag('var', $propertyPhpDoc)
+                ])
+                ->setWordWrap(false));
+
+        $class->addPropertyFromGenerator($property);
+
+        // Create getter for field
+        $getter = (new MethodGenerator())
+            ->setBody(sprintf('return $this->%s;', $field->getName()))
+            ->setName(sprintf('get%s', ucwords($field->getName())))
+            ->setDocBlock((new DocBlockGenerator())
+                ->setShortDescription('Getter for ' . $field->getName())
+                ->setLongDescription($field->getDescription())
+                ->setTags([
+                    new GenericTag('ElementName', $field->getName()),
+                    new ReturnTag(['datatype' => $propertyPhpDoc])
+                ])
+                ->setWordWrap(false));
+
+        $class->addMethodFromGenerator($getter);
+
+        // Create setter for field
+        $setter = (new MethodGenerator())
+            ->setName(sprintf('set%s', ucwords($field->getName())))
+            ->setBody(sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()))
+            ->setParameter(['name' => $field->getName()])
+            ->setDocBlock((new DocBlockGenerator())
+                ->setShortDescription('Setter for ' . $field->getName())
+                ->setLongDescription($field->getDescription())
+                ->setTags([
+                    new GenericTag('ElementName', $field->getName()),
+                    new ParamTag($field->getName(), $propertyPhpDoc),
+                    new ReturnTag(['datatype' => '$this'])
+                ])
+                ->setWordWrap(false));
+
+        $class->addMethodFromGenerator($setter);
+
+        // Create adder for field if array
+        if ($field->isArray()) {
+            $adder = (new MethodGenerator())
+                ->setName(sprintf('add%s', ucwords($field->getName())))
+                ->setBody(sprintf("\$this->%s []= $%s;\nreturn \$this;", $field->getName(), $field->getName()))
+                ->setParameter(['name' => $field->getName()])
+                ->setDocBlock((new DocBlockGenerator())
+                    ->setShortDescription('Adder for ' . $field->getName())
+                    ->setLongDescription($field->getDescription())
+                    ->setTags([
+                        new GenericTag('ElementName', $field->getName()),
+                        new ParamTag($field->getName(), $phpType),
+                        new ReturnTag(['datatype' => '$this'])
+                    ])
+                    ->setWordWrap(false));
+
+            $class->addMethodFromGenerator($adder);
+        }
     }
 
     /**
@@ -245,23 +258,42 @@ class ModelWriter
         $unqualifiedClassName = array_pop($namespaceSegments);
         $namespace = implode('\\', $namespaceSegments);
 
+        $valueType = TypeUtils::xsdToPrimitiveType($type->getRestriction());
+
         // Create class
         $class = (new ClassGenerator())
             ->setName($unqualifiedClassName)
             ->setNamespaceName($namespace)
-            ->setFlags(ClassGenerator::FLAG_ABSTRACT)
+            ->setExtendedClass(self::ENUM_BASE_TYPE)
             ->setDocBlock(DocBlockGenerator::fromArray([
                 'shortDescription' => $unqualifiedClassName,
                 'longDescription' => $type->getDescription(),
-                'tags' => array_map(function($tag) {
-                    /** @var Tag $tag */
-                    return new GenericTag($tag->getName(), $tag->getValue());
-                }, $type->getTags())
+                // Create PHPDoc tags for the following:
+                // * @see references for related classes
+                // * @method tags for each option
+                // * @ValueType contains the primitive type (int, string) of the enum
+                'tags' => array_merge(array_map(function($reference) {
+                    return new GenericTag('see', $reference);
+                }, $type->getReferences()), array_map(function($option) use($unqualifiedClassName) {
+                    return new MethodTag(TypeUtils::constantIdentifierForValue($option), $unqualifiedClassName, null, true);
+                }, $type->getOptions()), [
+                    new GenericTag('ValueType', $valueType)
+                ])
             ]));
 
         // Create a const for each possible value
-        foreach ($type->getValues() as $value) {
-            $class->addConstant(TypeUtils::constantIdentifierForValue($value), $value);
+        foreach ($type->getOptions() as $option) {
+            // $option will be a string coming from the parser. It needs to be cast to int/float for the const.
+            switch ($valueType) {
+                case 'int':
+                    $option = (int)$option;
+                    break;
+                case 'float':
+                    $option = (float)$option;
+                    break;
+            }
+
+            $class->addConstant(TypeUtils::constantIdentifierForValue($option), $option);
         }
 
         return $class;
@@ -270,20 +302,17 @@ class ModelWriter
 
 
     /**
-     * Retrieve the PHP type for the given field as a tuple (phpType, enumType)
+     * Retrieve the PHP type(s) for the given field
      *
-     * The PHP type can be a qualified class name for a ComplexType or a PHP primitive for a SimpleType.
-     * If the result is an EnumType (derived from SimpleType), then a qualified class name is also returned which
-     * contains constants for the valid values for the field.
+     * The PHP type can be a qualified class name for a ComplexType, EnumType, or a PHP primitive for a SimpleType.
      *
      * @param Field $field
      * @param Type[] $allTypes
-     * @return array
+     * @return string
      */
     private function determinePhpType(Field $field, array $allTypes)
     {
         $phpType = null;
-        $enumType = null;
 
         // Check if referenced type is an XSD type. If so, use a primitive PHP type
         if (TypeUtils::isXsdType($field->getTypeName())) {
@@ -291,24 +320,19 @@ class ModelWriter
         } else if (array_key_exists($field->getTypeName(), $allTypes)) {
             $type = $allTypes[$field->getTypeName()];
 
-            // Handle SimpleType fields. SimpleTypes always get turned into primitive PHP types
-            if ($type instanceof SimpleType) {
+            if ($type instanceof EnumType) {
+                // Handle EnumType, which will return a fully qualified class name
+                $phpType = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $type->getName());
+            } else if ($type instanceof SimpleType) {
+                // Handle SimpleType, which will return a primitive type
                 $phpType = $this->simpleTypeToPhpType($type, $allTypes);
-
-                // If also an EnumType, get the PHP class that represents the enum
-                if ($type instanceof EnumType) {
-                    $enumType = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $type->getName());
-                }
-            // Handle ComplexType fields. ComplexTypes get turned into PHP classes
             } else if ($type instanceof ComplexType) {
+                // Handle ComplexType, which will return a fully qualified class name
                 $phpType = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $type->getName());
             }
         }
 
-        return [
-            $phpType,
-            $enumType
-        ];
+        return $phpType;
     }
 
     /**

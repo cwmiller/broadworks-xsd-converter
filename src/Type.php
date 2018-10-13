@@ -13,8 +13,8 @@ abstract class Type
     /** @var string */
     protected $description;
 
-    /** @var Tag[] */
-    protected $tags = [];
+    /** @var string[] */
+    protected $references = [];
 
     /**
      * @return string
@@ -90,20 +90,20 @@ abstract class Type
     }
 
     /**
-     * @return Tag[]
+     * @return string[]
      */
-    public function getTags()
+    public function getReferences()
     {
-        return $this->tags;
+        return $this->references;
     }
 
     /**
-     * @param Tag[] $tags
+     * @param string[] $references
      * @return $this
      */
-    public function setTags($tags)
+    public function setReferences($references)
     {
-        $this->tags = $tags;
+        $this->references = $references;
         return $this;
     }
 }

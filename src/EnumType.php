@@ -5,23 +5,23 @@ namespace CWM\BroadWorksXsdConverter;
 class EnumType extends SimpleType
 {
     /** @var array */
-    private $values;
+    private $options;
 
     /**
      * @return array
      */
-    public function getValues()
+    public function getOptions()
     {
-        return $this->values;
+        return $this->options;
     }
 
     /**
-     * @param array $values
+     * @param array $options
      * @return $this
      */
-    public function setValues($values)
+    public function setOptions($options)
     {
-        $this->values = $values;
+        $this->options = $options;
         return $this;
     }
 }

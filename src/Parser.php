@@ -110,7 +110,7 @@ class Parser
 
         if ($this->debug) {
             if ($type instanceof EnumType) {
-                echo sprintf('Found Enum Type: %s', $type->getName()) . ' (' . $type->getRestriction() . ') (' . implode(', ', $type->getValues()) . ')' . PHP_EOL;
+                echo sprintf('Found Enum Type: %s', $type->getName()) . ' (' . $type->getRestriction() . ') (' . implode(', ', $type->getOptions()) . ')' . PHP_EOL;
             } else if ($type instanceof SimpleType) {
                 echo sprintf('Found Simple Type: %s', $type->getName()) . ' (' . $type->getRestriction() . ')' . PHP_EOL;
             } else if ($type instanceof ComplexType) {
@@ -156,7 +156,7 @@ class Parser
         $abstract = $element->getAttribute('abstract') === 'true';
 
         $description = '';
-        $tags = [];
+        $references = [];
         $fields = [];
         $parentType = null;
         $responseTypes = [];
@@ -174,7 +174,7 @@ class Parser
                         if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smp]+)?/', $description, $docTypeMatches)) {
                             if (count($docTypeMatches[0]) > 0) {
                                 foreach ($docTypeMatches[0] as $docTypeMatch) {
-                                    $tags[] = new Tag('see', $docTypeMatch);
+                                    $references[] = $docTypeMatch;
                                 }
                             }
                         }
@@ -224,7 +224,7 @@ class Parser
             ->setAbstract($abstract)
             ->setParentName($parentType)
             ->setDescription(trim($description))
-            ->setTags($tags)
+            ->setReferences($references)
             ->setResponseTypes($responseTypes)
             ->setFields($fields);
 
@@ -447,7 +447,7 @@ class Parser
 
         if (count($enumerations) > 0) {
             $type = (new EnumType())
-                ->setValues($enumerations);
+                ->setOptions($enumerations);
         } else {
             $type = new SimpleType();
         }
