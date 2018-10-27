@@ -5,19 +5,19 @@ namespace CWM\BroadWorksXsdConverter;
 class ComplexType extends Type
 {
     /** @var Field[] */
-    protected $fields = [];
+    private $fields = [];
 
     /** @var bool */
-    protected $abstract = false;
+    private $abstract = false;
 
     /** @var string */
-    protected $parentName;
+    private $parentName;
 
     /** @var string */
-    protected $ownerName;
+    private $ownerName;
 
     /** @var string[] */
-    protected $responseTypes = [];
+    private $responseTypes = [];
 
     /**
      * @return Field[]

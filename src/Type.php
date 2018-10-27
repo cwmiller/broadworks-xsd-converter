@@ -5,16 +5,16 @@ namespace CWM\BroadWorksXsdConverter;
 abstract class Type
 {
     /** @var string */
-    protected $filePath;
+    private $filePath;
 
     /** @var string */
-    protected $name;
+    private $name;
 
     /** @var string */
-    protected $description;
+    private $description;
 
     /** @var string[] */
-    protected $references = [];
+    private $references = [];
 
     /**
      * @return string

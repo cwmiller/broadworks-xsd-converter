@@ -5,16 +5,16 @@ namespace CWM\BroadWorksXsdConverter;
 class Field
 {
     /** @var string */
-    protected $name;
+    private $name;
 
     /** @var string */
-    protected $typeName;
+    private $typeName;
 
     /** @var string */
-    protected $description;
+    private $description;
 
     /** @var bool */
-    protected $isArray = false;
+    private $isArray = false;
 
     /**
      * @return string
