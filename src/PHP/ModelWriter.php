@@ -27,6 +27,9 @@ class ModelWriter
     /** @var string */
     private $baseNamespace;
 
+    /** @var string */
+    private $nilClassname;
+
     /** @var bool */
     private $debug;
 
@@ -35,12 +38,14 @@ class ModelWriter
     /**
      * @param string $outDir The root directory to write files to.
      * @param string $baseNamespace The base namespace for the generated classes.
+     * @param string $nilClassname The class name of the Nil class for nillable elements.
      * @param bool $debug
      */
-    public function __construct($outDir, $baseNamespace, $debug = false)
+    public function __construct($outDir, $baseNamespace, $nilClassname, $debug = false)
     {
         $this->outDir = $outDir;
         $this->baseNamespace = $baseNamespace;
+        $this->nilClassname = $nilClassname;
         $this->debug = $debug;
     }
 
@@ -153,6 +158,10 @@ class ModelWriter
     {
         $phpType = $this->determinePhpType($field, $allTypes);
 
+        $commonTags = [
+            new GenericTag('ElementName', $field->getName())
+        ];
+
         if ($phpType === null) {
             throw new RuntimeException('Unable to find type ' . $field->getTypeName());
         }
@@ -172,6 +181,11 @@ class ModelWriter
             ? []
             : null;
 
+        if ($field->isNillable()) {
+            $propertyPhpDoc .= '|' . $this->nilClassname;
+            $commonTags[] = new GenericTag('Nillable');
+        }
+
         // Create private property for field
         $property = (new PropertyGenerator())
             ->setName($field->getName())
@@ -179,10 +193,9 @@ class ModelWriter
             ->setDefaultValue($defaultValue)
             ->setDocBlock((new DocBlockGenerator())
                 ->setLongDescription($field->getDescription())
-                ->setTags([
-                    new GenericTag('ElementName', $field->getName()),
+                ->setTags(array_merge($commonTags, [
                     new GenericTag('var', $propertyPhpDoc)
-                ])
+                ]))
                 ->setWordWrap(false));
 
         $class->addPropertyFromGenerator($property);
@@ -194,10 +207,9 @@ class ModelWriter
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Getter for ' . $field->getName())
                 ->setLongDescription($field->getDescription())
-                ->setTags([
-                    new GenericTag('ElementName', $field->getName()),
+                ->setTags(array_merge($commonTags, [
                     new ReturnTag(['datatype' => $propertyPhpDoc])
-                ])
+                ]))
                 ->setWordWrap(false));
 
         $class->addMethodFromGenerator($getter);
@@ -220,11 +232,10 @@ class ModelWriter
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Setter for ' . $field->getName())
                 ->setLongDescription($field->getDescription())
-                ->setTags([
-                    new GenericTag('ElementName', $field->getName()),
+                ->setTags(array_merge($commonTags, [
                     new ParamTag($field->getName(), $propertyPhpDoc),
                     new ReturnTag(['datatype' => '$this'])
-                ])
+                ]))
                 ->setWordWrap(false));
 
         $class->addMethodFromGenerator($setter);
@@ -240,11 +251,10 @@ class ModelWriter
                 ->setDocBlock((new DocBlockGenerator())
                     ->setShortDescription('Adder for ' . $field->getName())
                     ->setLongDescription($field->getDescription())
-                    ->setTags([
-                        new GenericTag('ElementName', $field->getName()),
+                    ->setTags(array_merge($commonTags, [
                         new ParamTag($field->getName(), $phpType),
                         new ReturnTag(['datatype' => '$this'])
-                    ])
+                    ]))
                     ->setWordWrap(false));
 
             $class->addMethodFromGenerator($adder);
