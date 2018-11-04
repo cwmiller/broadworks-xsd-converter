@@ -21,13 +21,17 @@ class ModelWriter
     /** @var string */
     private $namespace;
 
+    /** @var string */
+    private $nilClassname;
+
     /** @var bool */
     private $debug;
 
-    public function __construct($outDir, $namespace, $debug = false)
+    public function __construct($outDir, $namespace, $nilClassname, $debug = false)
     {
         $this->outDir = $outDir;
         $this->namespace = $namespace;
+        $this->nilClassname = $nilClassname;
         $this->debug = $debug;
     }
 
@@ -83,6 +87,10 @@ class ModelWriter
                 foreach ($type->getFields() as $field) {
                     $phpType = $this->determinePhpType($field, $types);
 
+                    $commonTags = [
+                        new GenericTag('ElementName', $field->getName())
+                    ];
+
                     if ($phpType === null) {
                         throw new RuntimeException('Unable to find type ' . $field->getTypeName());
                     }
@@ -93,6 +101,11 @@ class ModelWriter
 
                     if (!$field->isArray()) {
                         $propertyPhpType .= '|null';
+                    }
+
+                    if ($field->isNillable()) {
+                        $propertyPhpType .= '|' . $this->nilClassname;
+                        $commonTags[] = new GenericTag('Nillable');
                     }
 
                     $defaultValue = $field->isArray()
@@ -106,10 +119,9 @@ class ModelWriter
                         ->setDefaultValue($defaultValue)
                         ->setDocBlock((new DocBlockGenerator())
                             ->setLongDescription($field->getDescription())
-                            ->setTags([
-                                new GenericTag('ElementName', $field->getName()),
+                            ->setTags(array_merge($commonTags, [
                                 new GenericTag('var', $propertyPhpType)
-                            ])
+                            ]))
                             ->setWordWrap(false));
 
                     $class->addPropertyFromGenerator($property);
@@ -121,10 +133,9 @@ class ModelWriter
                         ->setDocBlock((new DocBlockGenerator())
                             ->setShortDescription('Getter for ' . $field->getName())
                             ->setLongDescription($field->getDescription())
-                            ->setTags([
-                                new GenericTag('ElementName', $field->getName()),
+                            ->setTags(array_merge($commonTags, [
                                 new ReturnTag(['datatype' => $propertyPhpType])
-                            ])
+                            ]))
                             ->setWordWrap(false));
 
                     $class->addMethodFromGenerator($getter);
@@ -137,11 +148,10 @@ class ModelWriter
                         ->setDocBlock((new DocBlockGenerator())
                             ->setShortDescription('Setter for ' . $field->getName())
                             ->setLongDescription($field->getDescription())
-                            ->setTags([
-                                new GenericTag('ElementName', $field->getName()),
+                            ->setTags(array_merge($commonTags, [
                                 new ParamTag($field->getName(), $propertyPhpType),
                                 new ReturnTag(['datatype' => '$this'])
-                            ])
+                            ]))
                             ->setWordWrap(false));
 
                     $class->addMethodFromGenerator($setter);
@@ -155,11 +165,10 @@ class ModelWriter
                             ->setDocBlock((new DocBlockGenerator())
                                 ->setShortDescription('Adder for ' . $field->getName())
                                 ->setLongDescription($field->getDescription())
-                                ->setTags([
-                                    new GenericTag('ElementName', $field->getName()),
+                                ->setTags(array_merge($commonTags, [
                                     new ParamTag($field->getName(), $phpType),
                                     new ReturnTag(['datatype' => '$this'])
-                                ])
+                                ]))
                                 ->setWordWrap(false));
 
                         $class->addMethodFromGenerator($adder);

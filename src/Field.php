@@ -16,6 +16,9 @@ class Field
     /** @var bool */
     protected $isArray = false;
 
+    /** @var bool */
+    protected $isNillable = false;
+
     /**
      * @return string
      */
@@ -85,6 +88,24 @@ class Field
     public function setIsArray($isArray)
     {
         $this->isArray = $isArray;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isNillable()
+    {
+        return $this->isNillable;
+    }
+
+    /**
+     * @param bool $isNillable
+     * @return Field
+     */
+    public function setIsNillable($isNillable)
+    {
+        $this->isNillable = $isNillable;
         return $this;
     }
 }
