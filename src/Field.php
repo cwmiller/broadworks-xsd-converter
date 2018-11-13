@@ -19,6 +19,9 @@ class Field
     /** @var bool */
     protected $isNillable = false;
 
+    /** @var bool */
+    protected $isOptional = false;
+
     /**
      * @return string
      */
@@ -106,6 +109,24 @@ class Field
     public function setIsNillable($isNillable)
     {
         $this->isNillable = $isNillable;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isOptional()
+    {
+        return $this->isOptional;
+    }
+
+    /**
+     * @param bool $isOptional
+     * @return Field
+     */
+    public function setIsOptional($isOptional)
+    {
+        $this->isOptional = $isOptional;
         return $this;
     }
 }

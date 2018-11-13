@@ -158,33 +158,47 @@ class ModelWriter
     {
         $phpType = $this->determinePhpType($field, $allTypes);
 
-        $commonTags = [
-            new GenericTag('ElementName', $field->getName())
-        ];
-
         if ($phpType === null) {
             throw new RuntimeException('Unable to find type ' . $field->getTypeName());
         }
 
-        $propertyPhpDoc = $phpType;
+        // Contains the type annotation for the this field's property
+        $propertyTypeAnnotation = [];
 
-        // If the field is an array, then adjust the phpdoc to indicate it is an array
+        // Contains the type annotation for this field's getter/setter
+        $getterTypeAnnotation = [];
+
+        // Custom annotations placed on this field's property
+        $propertyTags = [
+            new GenericTag('ElementName', $field->getName()),
+            new GenericTag('Type', $phpType)
+        ];
+
         if ($field->isArray()) {
-            $propertyPhpDoc .= '[]';
+            $propertyTypeAnnotation[] = $phpType . '[]';
+            $getterTypeAnnotation[] = $phpType . '[]';
+
+            $propertyTags[] = new GenericTag('Array');
         } else {
-            // If the field is not an array, then the field can be null if it is not set.
-            $propertyPhpDoc .= '|null';
+            $propertyTypeAnnotation[] = $phpType;
+            $propertyTypeAnnotation[] = 'null';
+            $getterTypeAnnotation[] = $phpType;
         }
+
+        // If nillable, the property gets tagged as such and can be set the Nil class to indicate it's set to nil.
+        // The setter will then accept NULL to set the field as nil
+        if ($field->isNillable()) {
+            $propertyTags[] = new GenericTag('Nillable');
+            $getterTypeAnnotation[] = 'null';
+            $propertyTypeAnnotation[] = $this->nilClassname;
+        }
+
+        $propertyTags[] = new GenericTag('var', implode('|', $propertyTypeAnnotation));
 
         // If the field is an array, then the default value is a blank array. If not, then it's null.
         $defaultValue = $field->isArray()
             ? []
             : null;
-
-        if ($field->isNillable()) {
-            $propertyPhpDoc .= '|' . $this->nilClassname;
-            $commonTags[] = new GenericTag('Nillable');
-        }
 
         // Create private property for field
         $property = (new PropertyGenerator())
@@ -192,24 +206,22 @@ class ModelWriter
             ->setFlags(PropertyGenerator::FLAG_PRIVATE)
             ->setDefaultValue($defaultValue)
             ->setDocBlock((new DocBlockGenerator())
-                ->setLongDescription($field->getDescription())
-                ->setTags(array_merge($commonTags, [
-                    new GenericTag('var', $propertyPhpDoc)
-                ]))
+                ->setTags($propertyTags)
                 ->setWordWrap(false));
 
         $class->addPropertyFromGenerator($property);
 
         // Create getter for field
         $getter = (new MethodGenerator())
-            ->setBody(sprintf('return $this->%s;', $field->getName()))
+            ->setBody(str_replace(['{fieldName}', '{nilClass}'], [$field->getName(), $this->nilClassname],
+                'return $this->{fieldName} instanceof {nilClass} ? null : $this->{fieldName};'))
             ->setName(sprintf('get%s', ucwords($field->getName())))
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Getter for ' . $field->getName())
                 ->setLongDescription($field->getDescription())
-                ->setTags(array_merge($commonTags, [
-                    new ReturnTag(['datatype' => $propertyPhpDoc])
-                ]))
+                ->setTags([
+                    new ReturnTag(['datatype' => implode('|', $getterTypeAnnotation)])
+                ])
                 ->setWordWrap(false));
 
         $class->addMethodFromGenerator($getter);
@@ -223,38 +235,63 @@ class ModelWriter
             $setterTypeHint = $phpType;
         }
 
+        if ($field->isNillable()) {
+            $setterBody = str_replace(['{fieldName}', '{nilClass}'], [$field->getName(), $this->nilClassname], <<<EOF
+if (\${fieldName} === null) {
+    \$this->{fieldName} = new {nilClass};
+} else {
+    \$this->{fieldName} = \${fieldName};
+}
+return \$this;
+EOF
+);
+        } else {
+            $setterBody = str_replace('{fieldName}', $field->getName(), "\$this->{fieldName} = \${fieldName};\nreturn \$this;");
+        }
+
         $setter = (new MethodGenerator())
             ->setName(sprintf('set%s', ucwords($field->getName())))
-            ->setBody(sprintf("\$this->%s = $%s;\nreturn \$this;", $field->getName(), $field->getName()))
+            ->setBody($setterBody)
             ->setParameter(array_merge([
                 'name' => $field->getName(),
             ], $setterTypeHint !== null ? ['type' => $setterTypeHint] : []))
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Setter for ' . $field->getName())
                 ->setLongDescription($field->getDescription())
-                ->setTags(array_merge($commonTags, [
-                    new ParamTag($field->getName(), $propertyPhpDoc),
+                ->setTags([
+                    new ParamTag($field->getName(), implode('|', $getterTypeAnnotation)),
                     new ReturnTag(['datatype' => '$this'])
-                ]))
+                ])
                 ->setWordWrap(false));
 
         $class->addMethodFromGenerator($setter);
+
+        // Create unsetter for field
+        $unsetter = (new MethodGenerator())
+            ->setName(sprintf('unset%s', ucwords($field->getName())))
+            ->setBody(str_replace('{fieldName}', $field->getName(), "\$this->{fieldName} = null;\nreturn \$this;"))
+            ->setDocBlock((new DocBlockGenerator())
+                ->setTags([
+                    new ReturnTag(['datatype' => '$this'])
+                ])
+                ->setWordWrap(false));
+
+        $class->addMethodFromGenerator($unsetter);
 
         // Create adder for field if array
         if ($field->isArray()) {
             $adder = (new MethodGenerator())
                 ->setName(sprintf('add%s', ucwords($field->getName())))
-                ->setBody(sprintf("\$this->%s []= $%s;\nreturn \$this;", $field->getName(), $field->getName()))
+                ->setBody(str_replace('{fieldName}', $field->getName(), "\$this->{fieldName}[] = \${fieldName};\nreturn \$this;"))
                 ->setParameter(array_merge([
                     'name' => $field->getName(),
                 ], self::isScalar($phpType) ? ['type' => $phpType] : []))
                 ->setDocBlock((new DocBlockGenerator())
                     ->setShortDescription('Adder for ' . $field->getName())
-                    ->setLongDescription($field->getDescription())
-                    ->setTags(array_merge($commonTags, [
+                    ->setTags([
                         new ParamTag($field->getName(), $phpType),
                         new ReturnTag(['datatype' => '$this'])
-                    ]))
+                    ])
                     ->setWordWrap(false));
 
             $class->addMethodFromGenerator($adder);
@@ -293,13 +330,13 @@ class ModelWriter
                 // Create PHPDoc tags for the following:
                 // * @see references for related classes
                 // * @method tags for each option
-                // * @ValueType contains the primitive type (int, string) of the enum
+                // * @EnumValueType contains the primitive type (int, string) of the enum
                 'tags' => array_merge(array_map(function($reference) {
                     return new GenericTag('see', $reference);
                 }, $type->getReferences()), array_map(function($option) use($unqualifiedClassName) {
                     return new MethodTag(TypeUtils::constantIdentifierForValue($option), $unqualifiedClassName, null, true);
                 }, $type->getOptions()), [
-                    new GenericTag('ValueType', $valueType)
+                    new GenericTag('EnumValueType', $valueType)
                 ])
             ]));
 

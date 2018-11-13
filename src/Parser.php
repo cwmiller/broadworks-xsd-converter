@@ -275,6 +275,7 @@ class Parser
         $maxOccurs = $element->hasAttribute('maxOccurs');
         $isArray = $maxOccurs === 'unbounded' || (int)$maxOccurs > 0;
         $isNillable = $element->hasAttribute('nillable') && $element->getAttribute('nillable') === 'true';
+        $isOptional = $element->hasAttribute('minOccurs') && $element->getAttribute('minOccurs') === '0';
         $description = null;
 
         // Field can specify a type via the "type" attribute
@@ -319,7 +320,8 @@ class Parser
             ->setTypeName($typeName)
             ->setDescription($description)
             ->setIsArray($isArray)
-            ->setIsNillable($isNillable);
+            ->setIsNillable($isNillable)
+            ->setIsOptional($isOptional);
     }
 
     /**
