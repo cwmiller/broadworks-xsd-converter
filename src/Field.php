@@ -4,26 +4,29 @@ namespace CWM\BroadWorksXsdConverter;
 
 class Field
 {
-    /** @var string */
+    /** @var string|null */
     private $name;
 
-    /** @var string */
+    /** @var string|null */
     private $typeName;
 
-    /** @var string */
+    /** @var string|null */
     private $description;
 
     /** @var bool */
     private $isArray = false;
 
     /** @var bool */
-    protected $isNillable = false;
+    private $isNillable = false;
 
     /** @var bool */
-    protected $isOptional = false;
+    private $isOptional = false;
+
+    /** @var string|null */
+    private $groupId;
 
     /**
-     * @return string
+     * @return null|string
      */
     public function getName()
     {
@@ -31,8 +34,8 @@ class Field
     }
 
     /**
-     * @param string $name
-     * @return $this
+     * @param null|string $name
+     * @return Field
      */
     public function setName($name)
     {
@@ -41,7 +44,7 @@ class Field
     }
 
     /**
-     * @return string
+     * @return null|string
      */
     public function getTypeName()
     {
@@ -49,8 +52,8 @@ class Field
     }
 
     /**
-     * @param string $typeName
-     * @return $this
+     * @param null|string $typeName
+     * @return Field
      */
     public function setTypeName($typeName)
     {
@@ -59,7 +62,7 @@ class Field
     }
 
     /**
-     * @return string
+     * @return null|string
      */
     public function getDescription()
     {
@@ -67,7 +70,7 @@ class Field
     }
 
     /**
-     * @param string $description
+     * @param null|string $description
      * @return Field
      */
     public function setDescription($description)
@@ -86,7 +89,7 @@ class Field
 
     /**
      * @param bool $isArray
-     * @return $this
+     * @return Field
      */
     public function setIsArray($isArray)
     {
@@ -127,6 +130,24 @@ class Field
     public function setIsOptional($isOptional)
     {
         $this->isOptional = $isOptional;
+        return $this;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getGroupId()
+    {
+        return $this->groupId;
+    }
+
+    /**
+     * @param null|string $groupId
+     * @return Field
+     */
+    public function setGroupId($groupId)
+    {
+        $this->groupId = $groupId;
         return $this;
     }
 }

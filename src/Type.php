@@ -4,20 +4,20 @@ namespace CWM\BroadWorksXsdConverter;
 
 abstract class Type
 {
-    /** @var string */
+    /** @var string|null */
     private $filePath;
 
-    /** @var string */
+    /** @var string|null */
     private $name;
 
-    /** @var string */
+    /** @var string|null */
     private $description;
 
     /** @var string[] */
     private $references = [];
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getFilePath()
     {
@@ -25,7 +25,7 @@ abstract class Type
     }
 
     /**
-     * @param string $filePath
+     * @param string|null $filePath
      * @return $this
      */
     public function setFilePath($filePath)
@@ -35,7 +35,7 @@ abstract class Type
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getName()
     {
@@ -43,7 +43,7 @@ abstract class Type
     }
 
     /**
-     * @param string $name
+     * @param string|null $name
      * @return $this
      */
     public function setName($name)
@@ -72,7 +72,7 @@ abstract class Type
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getDescription()
     {
@@ -80,7 +80,7 @@ abstract class Type
     }
 
     /**
-     * @param string $description
+     * @param string|null $description
      * @return $this
      */
     public function setDescription($description)

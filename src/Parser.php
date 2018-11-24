@@ -2,6 +2,8 @@
 
 namespace CWM\BroadWorksXsdConverter;
 
+use CWM\BroadWorksXsdConverter\Schema\Choice;
+use CWM\BroadWorksXsdConverter\Schema\Sequence;
 use DOMDocument;
 use DOMElement;
 use RuntimeException;
@@ -9,7 +11,7 @@ use RuntimeException;
 class Parser
 {
     /** @var bool */
-    private $debug;
+    private $debug ;
 
     /** @var string */
     private $rootFile;
@@ -85,7 +87,6 @@ class Parser
                             break;
                         case 'complexType':
                             $this->handleComplexType($childElement, $schemaElement, $fileRealPath, null);
-
                             break;
                         case 'simpleType':
                             $this->handleSimpleType($childElement, $schemaElement, $fileRealPath);
@@ -152,85 +153,76 @@ class Parser
             throw new RuntimeException('Type doesn\'t have a name');
         }
 
-        // Check if type is abstract
-        $abstract = $element->getAttribute('abstract') === 'true';
-
-        $description = '';
-        $references = [];
-        $fields = [];
-        $parentType = null;
-        $responseTypes = [];
-
-        for ($i = 0; $i < $element->childNodes->length; $i++) {
-            $child = $element->childNodes->item($i);
-
-            switch ($child->localName) {
-                case 'annotation':
-                    $documentationElements = $child->getElementsByTagName('documentation');
-                    if ($documentationElements->length > 0) {
-                        $description = $documentationElements->item(0)->nodeValue;
-
-                        // Create @see tags for all Request and Response classes found in the documentation
-                        if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smpv]+)?/i', $description, $docTypeMatches)) {
-                            if (count($docTypeMatches[0]) > 0) {
-                                foreach ($docTypeMatches[0] as $docTypeMatch) {
-                                    $references[] = $docTypeMatch;
-                                }
-                            }
-                        }
-
-                        // Find any response objects listed in the documentation
-                        if (preg_match('/The response is.*/', $description, $responseMatches)) {
-                            if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smpv]+)?/i', $responseMatches[0], $responseMatches)) {
-                                $responseTypes = array_map(function($responseMatch) {
-                                    if ($responseMatch === 'SuccessResponse') {
-                                        $responseMatch = ':C:' . $responseMatch;
-                                    }
-
-                                    return $responseMatch;
-                                }, $responseMatches[0]);
-
-                                // Remove ErrorResponse from the return types
-                                $responseTypes = array_filter($responseTypes, function($type) {
-                                    return $type !== 'ErrorResponse';
-                                });
-                            }
-                        }
-                    }
-                    break;
-                case 'complexContent':
-                    for ($j = 0; $j < $child->childNodes->length; $j++) {
-                        $grandchild = $child->childNodes->item($j);
-                        if ($grandchild->localName === 'extension') {
-                            $parentType = $this->toQualifiedName($grandchild->getAttribute('base'), $schemaElement);
-                        }
-
-                        if ($grandchild instanceof DOMElement) {
-                            $fields = array_merge($fields, $this->findFields($grandchild, $schemaElement, $filePath, $name));
-                        }
-                    }
-                    break;
-                default:
-                    if ($child instanceof DOMElement) {
-                        $fields = array_merge($fields, $this->findFields($child, $schemaElement, $filePath, $name));
-                    }
-            }
-        }
-
-        $type = (new ComplexType())
+        $complexType = (new ComplexType())
             ->setFilePath($filePath)
             ->setName($name)
             ->setOwnerName($ownerName)
-            ->setAbstract($abstract)
-            ->setParentName($parentType)
-            ->setDescription(trim($description))
-            ->setReferences($references)
-            ->setResponseTypes($responseTypes)
-            ->setFields($fields);
+            ->setAbstract($element->getAttribute('abstract') === 'true');
 
-        $this->addType($type);
+        // Retrieve the documentation tag to get the type's description
+        $annotationElements = $element->getElementsByTagName('annotation');
+        if ($annotationElements->length > 0) {
+            $documentationElements = $annotationElements->item(0)->getElementsByTagName('documentation');
+            if ($documentationElements->length > 0) {
+                $description = trim($documentationElements->item(0)->nodeValue);
 
-        return $type;
+                $complexType->setDescription($description);
+
+                // Create @see tags for all Request and Response classes found in the documentation
+                if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smpv]+)?/i', $description, $docTypeMatches)) {
+                    if (count($docTypeMatches[0]) > 0) {
+                        $references = [];
+                        foreach ($docTypeMatches[0] as $docTypeMatch) {
+                            $references[] = $docTypeMatch;
+                        }
+
+                        $complexType->setReferences($references);
+                    }
+                }
+
+                // Find any response objects listed in the documentation
+                if (preg_match('/The response is.*/', $description, $responseMatches)) {
+                    if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smpv]+)?/i', $responseMatches[0], $responseMatches)) {
+                        $responseTypes = array_map(function($responseMatch) {
+                            if ($responseMatch === 'SuccessResponse') {
+                                $responseMatch = ':C:' . $responseMatch;
+                            }
+
+                            return $responseMatch;
+                        }, $responseMatches[0]);
+
+                        // Remove ErrorResponse from the return types
+                        $responseTypes = array_filter($responseTypes, function($type) {
+                            return $type !== 'ErrorResponse';
+                        });
+
+                        $complexType->setResponseTypes($responseTypes);
+                    }
+                }
+            }
+        }
+
+        // Retrieve the complexContent element (if it exists) to get the base type
+        $contentElements = $element->getElementsByTagName('complexContent');
+        if ($contentElements->length > 0) {
+            $extensionElements = $contentElements->item(0)->getElementsByTagName('extension');
+            if ($extensionElements->length > 0) {
+                $base = $extensionElements->item(0)->getAttribute('base');
+                if ($base !== null) {
+                    $complexType->setParentName($this->toQualifiedName($base, $schemaElement));
+                }
+            }
+        }
+
+        // Get all fields that are part of this type
+        $complexType->setFields($this->findFields($element, $schemaElement, $filePath, $name));
+
+        // Get the schema layout of groups
+        $complexType->setGroups($this->findGroups($element, $filePath));
+
+        $this->addType($complexType);
+
+        return $complexType;
     }
 
     /**
@@ -274,9 +266,12 @@ class Parser
         $fieldName = $element->getAttribute('name');
         $maxOccurs = $element->hasAttribute('maxOccurs');
         $isArray = $maxOccurs === 'unbounded' || (int)$maxOccurs > 0;
-        $isNillable = $element->hasAttribute('nillable') && $element->getAttribute('nillable') === 'true';
-        $isOptional = $element->hasAttribute('minOccurs') && $element->getAttribute('minOccurs') === '0';
+        $isNillable = $element->getAttribute('nillable') === 'true';
+        $isOptional = $element->getAttribute('minOccurs') === '0';
+        $groupId = $this->getElementId($element->parentNode, $filePath);
         $description = null;
+        $sequence = null;
+        $choice = null;
 
         // Field can specify a type via the "type" attribute
         $typeName = $element->getAttribute('type');
@@ -321,7 +316,8 @@ class Parser
             ->setDescription($description)
             ->setIsArray($isArray)
             ->setIsNillable($isNillable)
-            ->setIsOptional($isOptional);
+            ->setIsOptional($isOptional)
+            ->setGroupId($groupId);
     }
 
     /**
@@ -468,6 +464,41 @@ class Parser
     }
 
     /**
+     * @param DOMElement $element
+     * @param string $filePath
+     * @return Sequence|Choice[]
+     */
+    private function findGroups(DOMElement $element, $filePath)
+    {
+        $groups = [];
+
+        for ($i = 0; $i < $element->childNodes->length; $i++) {
+            $childElement = $element->childNodes->item($i);
+
+            if ($childElement instanceof DOMElement) {
+                switch ($childElement->localName) {
+                    case 'sequence':
+                        $groups[] = new Sequence(
+                            $this->getElementId($childElement, $filePath),
+                            $this->findGroups($childElement, $filePath)
+                        );
+                        break;
+                    case 'choice':
+                        $groups[] = new Choice(
+                            $this->getElementId($childElement, $filePath),
+                            $this->findGroups($childElement, $filePath),
+                            $childElement->getAttribute('minOccurs') === '0'
+                        );
+                    default:
+                        $groups = array_merge($groups, $this->findGroups($childElement, $filePath));
+                }
+            }
+        }
+
+        return $groups;
+    }
+
+    /**
      * @param string $name
      * @param DOMElement $schemaElement
      * @return string
@@ -483,5 +514,15 @@ class Parser
         }
 
         return $namespace . ':' . $name;
+    }
+
+    /**
+     * @param DOMElement $element
+     * @param string $filePath
+     * @return string
+     */
+    private function getElementId(DOMElement $element, $filePath)
+    {
+        return sprintf('%s:%d', md5($filePath), $element->getLineNo());
     }
 }

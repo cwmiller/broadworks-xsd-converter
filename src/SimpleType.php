@@ -4,11 +4,11 @@ namespace CWM\BroadWorksXsdConverter;
 
 class SimpleType extends Type
 {
-    /** @var string */
+    /** @var string|null */
     private $restriction;
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getRestriction()
     {
@@ -16,7 +16,7 @@ class SimpleType extends Type
     }
 
     /**
-     * @param string $restriction
+     * @param string|null $restriction
      * @return $this
      */
     public function setRestriction($restriction)

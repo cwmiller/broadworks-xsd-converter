@@ -2,6 +2,9 @@
 
 namespace CWM\BroadWorksXsdConverter;
 
+use CWM\BroadWorksXsdConverter\Schema\Choice;
+use CWM\BroadWorksXsdConverter\Schema\Sequence;
+
 class ComplexType extends Type
 {
     /** @var Field[] */
@@ -10,14 +13,17 @@ class ComplexType extends Type
     /** @var bool */
     private $abstract = false;
 
-    /** @var string */
+    /** @var string|null */
     private $parentName;
 
-    /** @var string */
+    /** @var string|null */
     private $ownerName;
 
     /** @var string[] */
     private $responseTypes = [];
+
+    /** @var Choice[]|Sequence[] */
+    private $groups;
 
     /**
      * @return Field[]
@@ -66,7 +72,7 @@ class ComplexType extends Type
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getParentName()
     {
@@ -74,7 +80,7 @@ class ComplexType extends Type
     }
 
     /**
-     * @param string $parentName
+     * @param string|null $parentName
      * @return $this
      */
     public function setParentName($parentName)
@@ -84,7 +90,7 @@ class ComplexType extends Type
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getOwnerName()
     {
@@ -92,7 +98,7 @@ class ComplexType extends Type
     }
 
     /**
-     * @param string $ownerName
+     * @param string|null $ownerName
      * @return $this
      */
     public function setOwnerName($ownerName)
@@ -118,4 +124,23 @@ class ComplexType extends Type
         $this->responseTypes = $responseTypes;
         return $this;
     }
+
+    /**
+     * @return Choice[]|Sequence[]
+     */
+    public function getGroups()
+    {
+        return $this->groups;
+    }
+
+    /**
+     * @param Choice[]|Sequence[] $groups
+     * @return ComplexType
+     */
+    public function setGroups($groups)
+    {
+        $this->groups = $groups;
+        return $this;
+    }
+
 }

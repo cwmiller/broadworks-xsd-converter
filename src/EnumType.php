@@ -4,11 +4,11 @@ namespace CWM\BroadWorksXsdConverter;
 
 class EnumType extends SimpleType
 {
-    /** @var array */
-    private $options;
+    /** @var string[] */
+    private $options = [];
 
     /**
-     * @return array
+     * @return string[]
      */
     public function getOptions()
     {
@@ -16,7 +16,7 @@ class EnumType extends SimpleType
     }
 
     /**
-     * @param array $options
+     * @param string[] $options
      * @return $this
      */
     public function setOptions($options)

@@ -5,6 +5,8 @@ namespace CWM\BroadWorksXsdConverter\PHP;
 use CWM\BroadWorksXsdConverter\ComplexType;
 use CWM\BroadWorksXsdConverter\EnumType;
 use CWM\BroadWorksXsdConverter\Field;
+use CWM\BroadWorksXsdConverter\Schema\Choice;
+use CWM\BroadWorksXsdConverter\Schema\Sequence;
 use CWM\BroadWorksXsdConverter\SimpleType;
 use CWM\BroadWorksXsdConverter\Tag;
 use CWM\BroadWorksXsdConverter\Type;
@@ -126,6 +128,16 @@ class ModelWriter
             $qualifiedParentClassName = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $type->getParentName());
         }
 
+        // Annotations for the complex type. Start out with @see tags for references
+        $tags = array_map(function($reference) {
+            return new GenericTag('see', $reference);
+        }, $type->getReferences());
+
+        // Add @Groups tags containing details about the sequence & choice elements
+        if (count($type->getGroups()) > 0) {
+            $tags[] = new GenericTag('Groups', self::buildGroupJson($type->getGroups()));
+        }
+
         // Create class
         $class = (new ClassGenerator())
             ->setName($unqualifiedClassName)
@@ -135,10 +147,8 @@ class ModelWriter
             ->setDocBlock(DocBlockGenerator::fromArray([
                 'shortDescription' => $unqualifiedClassName,
                 'longDescription' => $type->getDescription(),
-                'tags' => array_map(function($reference) {
-                    return new GenericTag('see', $reference);
-                }, $type->getReferences())
-            ]));
+                'tags' => $tags
+            ])->setWordWrap(false));
 
         // Create property, getter, and setter for each field on the type
         foreach ($type->getFields() as $field) {
@@ -193,12 +203,22 @@ class ModelWriter
             $propertyTypeAnnotation[] = $this->nilClassname;
         }
 
-        $propertyTags[] = new GenericTag('var', implode('|', $propertyTypeAnnotation));
-
         // If the field is an array, then the default value is a blank array. If not, then it's null.
         $defaultValue = $field->isArray()
             ? []
             : null;
+
+        // Add Optional annotation if the field is explicitly optional
+        if ($field->isOptional()) {
+            $propertyTags[] = new GenericTag('Optional');
+        }
+
+        // Group is a unique ID representing the parent element containing the field
+        if ($field->getGroupId() !== null) {
+            $propertyTags[] = new GenericTag('Group', $field->getGroupId());
+        }
+
+        $propertyTags[] = new GenericTag('var', implode('|', $propertyTypeAnnotation));
 
         // Create private property for field
         $property = (new PropertyGenerator())
@@ -236,7 +256,10 @@ class ModelWriter
         }
 
         if ($field->isNillable()) {
-            $setterBody = str_replace(['{fieldName}', '{nilClass}'], [$field->getName(), $this->nilClassname], <<<EOF
+            $setterBody = str_replace(
+                ['{fieldName}', '{nilClass}'],
+                [$field->getName(), $this->nilClassname],
+                <<<EOF
 if (\${fieldName} === null) {
     \$this->{fieldName} = new {nilClass};
 } else {
@@ -246,7 +269,11 @@ return \$this;
 EOF
 );
         } else {
-            $setterBody = str_replace('{fieldName}', $field->getName(), "\$this->{fieldName} = \${fieldName};\nreturn \$this;");
+            $setterBody = str_replace(
+                '{fieldName}',
+                $field->getName(),
+                "\$this->{fieldName} = \${fieldName};\nreturn \$this;"
+            );
         }
 
         $setter = (new MethodGenerator())
@@ -422,6 +449,10 @@ EOF
         return $phpType;
     }
 
+    /**
+     * @param string $typeName
+     * @return bool
+     */
     private static function isScalar($typeName)
     {
         return in_array($typeName, [
@@ -430,5 +461,34 @@ EOF
             'bool',
             'float'
         ], true);
+    }
+
+    /**
+     * @param Sequence[]|Choice[] $groups
+     * @return string
+     */
+    private static function buildGroupJson(array $groups)
+    {
+        $convert = function($group) use (&$convert) {
+            /** @var Sequence|Choice $group */
+            $json = [
+                'id' => $group->getId(),
+                'type' => ($group instanceof Sequence)
+                    ? 'sequence'
+                    : 'group'
+            ];
+
+            if (($group instanceof Choice) && $group->isOptional()) {
+                $json['optional'] = true;
+            }
+
+            if (count($group->getChildren()) > 0) {
+                $json['children'] = array_map($convert, $group->getChildren());
+            }
+
+            return $json;
+        };
+
+        return trim(json_encode(array_map($convert, $groups)));
     }
 }
