@@ -475,7 +475,7 @@ EOF
                 'id' => $group->getId(),
                 'type' => ($group instanceof Sequence)
                     ? 'sequence'
-                    : 'group'
+                    : 'choice'
             ];
 
             if (($group instanceof Choice) && $group->isOptional()) {

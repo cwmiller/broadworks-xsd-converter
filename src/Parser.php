@@ -489,6 +489,7 @@ class Parser
                             $this->findGroups($childElement, $filePath),
                             $childElement->getAttribute('minOccurs') === '0'
                         );
+                        break;
                     default:
                         $groups = array_merge($groups, $this->findGroups($childElement, $filePath));
                 }
