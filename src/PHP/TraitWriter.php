@@ -4,6 +4,7 @@ namespace CWM\BroadWorksXsdConverter\PHP;
 
 use CWM\BroadWorksXsdConverter\ComplexType;
 use CWM\BroadWorksXsdConverter\Type;
+use ReflectionClass;
 use RuntimeException;
 use Zend\Code\Generator\DocBlock\Tag\ParamTag;
 use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
@@ -24,6 +25,12 @@ class TraitWriter
     /** @var string */
     private $traitNamespace;
 
+    /** @var string */
+    private $errorResponseClassname;
+
+    /** @var string */
+    private $validationClassname;
+
     /** @var bool */
     private $debug;
 
@@ -34,13 +41,17 @@ class TraitWriter
      * @param string $outDir
      * @param string $modelNamespace
      * @param string $traitNamespace
+     * @param string $errorResponseClassname
+     * @param string $validationClassname
      * @param bool $debug
      */
-    public function __construct($outDir, $modelNamespace, $traitNamespace, $debug = false)
+    public function __construct($outDir, $modelNamespace, $traitNamespace, $errorResponseClassname, $validationClassname, $debug = false)
     {
         $this->outDir = $outDir;
         $this->modelNamespace = $modelNamespace;
         $this->traitNamespace = $traitNamespace;
+        $this->errorResponseClassname = $errorResponseClassname;
+        $this->validationClassname = $validationClassname;
         $this->debug = $debug;
     }
 
@@ -48,6 +59,7 @@ class TraitWriter
      * @param Type[] $types
      * @throws \RuntimeException
      * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
+     * @throws \ReflectionException
      */
     public function write(array $types)
     {
@@ -76,7 +88,9 @@ class TraitWriter
                 }, $type->getResponseTypes());
 
                 $trait->addUse($qualifiedRequestType);
-                $trait->addUse('CWM\BroadWorksConnector\Ocip\ErrorResponseException');
+                //$trait->addUse('CWM\BroadWorksConnector\Ocip\ErrorResponseException');
+                $trait->addUse($this->errorResponseClassname);
+                $trait->addUse($this->validationClassname);
                 foreach ($responseTypes as $responseType) {
                     $trait->addUse($responseType['qualified']);
                 }
@@ -91,7 +105,8 @@ class TraitWriter
                             new ReturnTag(['datatype' => implode('|', array_map(function($responseType) {
                                 return $responseType['unqualified'];
                             }, $responseTypes))]),
-                            new ThrowsTag('ErrorResponseException')
+                            new ThrowsTag(substr(strrchr($this->errorResponseClassname, '\\'), 1)),
+                            new ThrowsTag(substr(strrchr($this->validationClassname, '\\'), 1))
                         ])
                         ->setWordWrap(false));
 

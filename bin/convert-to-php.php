@@ -22,12 +22,12 @@ $opts = array_values(array_filter($argv, function($arg) {
     return $arg[0] === '-';
 }));
 
-if (count($args) < 6) {
-    echo sprintf('Usage: %s [-d] path-to-root-xsd output-directory models-namespace traits-namespace nil-classname', basename($args[0])) . PHP_EOL;
+if (count($args) < 8) {
+    echo sprintf('Usage: %s [-d] path-to-root-xsd output-directory models-namespace traits-namespace nil-classname errorresponse-classname validation-classname', basename($args[0])) . PHP_EOL;
     exit(-1);
 }
 
-list($_, $rootXsd, $outputDirectory, $modelNamespace, $traitNamespace, $nilClassname) = $args;
+list($_, $rootXsd, $outputDirectory, $modelNamespace, $traitNamespace, $nilClassname, $errorResponseClassname, $validationClassname) = $args;
 
 $debug = in_array('-d', $opts, true);
 
@@ -37,5 +37,5 @@ $types = $parser->parse();
 $modelWriter = new ModelWriter($outputDirectory, $modelNamespace, $nilClassname, $debug);
 $modelWriter->write($types);
 
-$traitWriter = new TraitWriter($outputDirectory, $modelNamespace, $traitNamespace, $debug);
+$traitWriter = new TraitWriter($outputDirectory, $modelNamespace, $traitNamespace, $errorResponseClassname, $validationClassname, $debug);
 $traitWriter->write($types);
