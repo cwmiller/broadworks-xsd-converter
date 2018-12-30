@@ -490,6 +490,9 @@ class Parser
                             $childElement->getAttribute('minOccurs') === '0'
                         );
                         break;
+                    case 'complexType':
+                        // Do not follow into complex sub-types
+                        break;
                     default:
                         $groups = array_merge($groups, $this->findGroups($childElement, $filePath));
                 }
