@@ -66,8 +66,16 @@ class ModelWriter
 
             // Only create class files for ComplexType & EnumType
             if ($type instanceof ComplexType) {
+                if ($this->debug) {
+                    echo sprintf('Generating %s', $type->getName()) . PHP_EOL;
+                }
+
                 $class = $this->generateComplexTypeClass($type, $types);
             } else if ($type instanceof EnumType) {
+                if ($this->debug) {
+                    echo sprintf('Generating %s', $type->getName()) . PHP_EOL;
+                }
+
                 $class = $this->generateEnumTypeClass($type);
             }
 

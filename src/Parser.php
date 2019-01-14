@@ -86,7 +86,7 @@ class Parser
                             $this->parseFile($pathToImportFile);
                             break;
                         case 'complexType':
-                            $this->handleComplexType($childElement, $schemaElement, $fileRealPath, null);
+                            $this->handleComplexType($childElement, $schemaElement, $fileRealPath);
                             break;
                         case 'simpleType':
                             $this->handleSimpleType($childElement, $schemaElement, $fileRealPath);
@@ -133,7 +133,7 @@ class Parser
      * @return ComplexType
      * @throws \InvalidArgumentException
      */
-    private function handleComplexType(DOMElement $element, DOMElement $schemaElement, $filePath, $forceName = null, $ownerName = null)
+    private function handleComplexType(DOMElement $element, DOMElement $schemaElement, $filePath, $forceName = null, $ownerName = null, $ownerNamespace = null)
     {
         if ($element->localName !== 'complexType') {
             throw new \InvalidArgumentException('Element is not a complexType');
@@ -143,10 +143,12 @@ class Parser
         // on the complex type's definition. Instead, the name of the element is appended to the name of the parent type.
         if ($forceName !== null) {
             $name = $forceName;
+            $namespace = $ownerNamespace;
         } else {
             // Get name of type
             $name = $element->getAttribute('name');
-            $name = $this->toQualifiedName($name, $schemaElement);
+            $namespace = $element->getAttribute('xmlns');
+            $name = $this->toQualifiedName($name, $namespace, $schemaElement);
         }
 
         if ($name === null || $name === '') {
@@ -209,13 +211,13 @@ class Parser
             if ($extensionElements->length > 0) {
                 $base = $extensionElements->item(0)->getAttribute('base');
                 if ($base !== null) {
-                    $complexType->setParentName($this->toQualifiedName($base, $schemaElement));
+                    $complexType->setParentName($this->toQualifiedName($base, $namespace, $schemaElement));
                 }
             }
         }
 
         // Get all fields that are part of this type
-        $complexType->setFields($this->findFields($element, $schemaElement, $filePath, $name));
+        $complexType->setFields($this->findFields($element, $schemaElement, $filePath, $name, $namespace));
 
         // Get the schema layout of groups
         $complexType->setGroups($this->findGroups($element, $filePath));
@@ -233,7 +235,7 @@ class Parser
      * @return Field[]
      * @throws \InvalidArgumentException
      */
-    private function findFields(DOMElement $parent, DOMElement $schemaElement, $filePath, $ownerName)
+    private function findFields(DOMElement $parent, DOMElement $schemaElement, $filePath, $ownerName, $ownerNamespace)
     {
         $fields = [];
 
@@ -242,10 +244,10 @@ class Parser
 
             if ($child instanceof DOMElement) {
                 if ($child->localName === 'element') {
-                    $field = $this->handleField($child, $schemaElement, $filePath, $ownerName);
+                    $field = $this->handleField($child, $schemaElement, $filePath, $ownerName, $ownerNamespace);
                     $fields[$field->getName()] = $field;
                 } else {
-                    $fields = array_merge($fields, $this->findFields($child, $schemaElement, $filePath, $ownerName));
+                    $fields = array_merge($fields, $this->findFields($child, $schemaElement, $filePath, $ownerName, $ownerNamespace));
                 }
             }
         }
@@ -261,7 +263,7 @@ class Parser
      * @return Field
      * @throws \InvalidArgumentException
      */
-    private function handleField(DOMElement $element, DOMElement $schemaElement, $filePath, $ownerName)
+    private function handleField(DOMElement $element, DOMElement $schemaElement, $filePath, $ownerName, $ownerNamespace)
     {
         $fieldName = $element->getAttribute('name');
         $maxOccurs = $element->hasAttribute('maxOccurs');
@@ -274,20 +276,20 @@ class Parser
         $choice = null;
 
         // Field can specify a type via the "type" attribute
-        $typeName = $element->getAttribute('type');
+        $typeName = trim($element->getAttribute('type'));
 
         if ($typeName !== '') {
-            $typeName = $this->handleTypedField($element, $schemaElement);
+            $typeName = $this->handleTypedField($element, $ownerNamespace, $schemaElement);
         } else {
             // If not typed, it can be a simple type if a "simpleType" element exists
             $simpleTypeElements = $element->getElementsByTagName('simpleType');
             if ($simpleTypeElements->length > 0) {
-                $typeName = $this->handleSimpleField($element, $schemaElement, $fieldName, $ownerName);
+                $typeName = $this->handleSimpleField($element, $schemaElement, $fieldName, $ownerName, $ownerNamespace);
             } else {
                 // If not a simple type, it can be a complex type if a "complexType" element exists
                 $complexTypeElements = $element->getElementsByTagName('complexType');
                 if ($complexTypeElements->length > 0) {
-                    $typeName = $this->handleComplexField($element, $schemaElement, $filePath, $fieldName, $ownerName);
+                    $typeName = $this->handleComplexField($element, $schemaElement, $filePath, $fieldName, $ownerName, $ownerNamespace);
                 } else {
                     // No explicit type was put on the element. Default to a string
                     $typeName = 'http://www.w3.org/2001/XMLSchema:string';
@@ -325,15 +327,15 @@ class Parser
      * @param DOMElement $schemaElement
      * @return string
      */
-    private function handleTypedField(DOMElement $element, DOMElement $schemaElement)
+    private function handleTypedField(DOMElement $element, $ownerNamespace, DOMElement $schemaElement)
     {
-        $typeName = $element->getAttribute('type');
+        $typeName = trim($element->getAttribute('type'));
 
         if ($typeName === null || $typeName === '') {
             throw new RuntimeException('Expected type attribute not found');
         }
 
-        return $this->toQualifiedName($typeName, $schemaElement);
+        return $this->toQualifiedName($typeName, $ownerNamespace, $schemaElement);
     }
 
     /**
@@ -344,7 +346,7 @@ class Parser
      * @return string
      * @throws \InvalidArgumentException
      */
-    private function handleSimpleField(DOMElement $element, DOMElement $schemaElement, $fieldName, $ownerName)
+    private function handleSimpleField(DOMElement $element, DOMElement $schemaElement, $fieldName, $ownerName, $ownerNamespace)
     {
         $restriction = null;
         $simpleTypeElements = $element->getElementsByTagName('simpleType');
@@ -365,9 +367,9 @@ class Parser
 
         $this->addType((new SimpleType())
             ->setName($typeName)
-            ->setRestriction($this->toQualifiedName($restriction, $schemaElement)));
+            ->setRestriction($this->toQualifiedName($restriction, $ownerNamespace, $schemaElement)));
 
-        return $this->toQualifiedName($typeName, $schemaElement);
+        return $this->toQualifiedName($typeName, $ownerNamespace, $schemaElement);
     }
 
     /**
@@ -379,16 +381,16 @@ class Parser
      * @return string
      * @throws \InvalidArgumentException
      */
-    private function handleComplexField(DOMElement $element, DOMElement $schemaElement, $filePath, $fieldName, $ownerName)
+    private function handleComplexField(DOMElement $element, DOMElement $schemaElement, $filePath, $fieldName, $ownerName, $ownerNamespace)
     {
         // Create a new simple type to represent this field
         $typeName = $ownerName . ucwords($fieldName);
 
         $complexTypeElements = $element->getElementsByTagName('complexType');
         $complexTypeElement = $complexTypeElements->item(0);
-        $this->handleComplexType($complexTypeElement, $schemaElement, $filePath, $typeName, $ownerName);
+        $this->handleComplexType($complexTypeElement, $schemaElement, $filePath, $typeName, $ownerName, $ownerNamespace);
 
-        return $this->toQualifiedName($typeName, $schemaElement);
+        return $this->toQualifiedName($typeName, $ownerNamespace, $schemaElement);
     }
 
     /**
@@ -406,12 +408,13 @@ class Parser
 
         // Get name of type
         $name = $element->getAttribute('name');
+        $namespace = $element->getAttribute('xmlns');
 
         if ($name === null || $name === '') {
             throw new RuntimeException('Simple type doesn\'t have a name!');
         }
 
-        $name = $this->toQualifiedName($name, $schemaElement);
+        $name = $this->toQualifiedName($name, $namespace, $schemaElement);
 
         // Get type restriction
         $restriction = null;
@@ -435,7 +438,7 @@ class Parser
             throw new RuntimeException('No restriction found for element.');
         }
 
-        $restriction = $this->toQualifiedName($restriction, $schemaElement);
+        $restriction = $this->toQualifiedName($restriction, $namespace, $schemaElement);
 
         // Get description of type
         $description = null;
@@ -504,12 +507,16 @@ class Parser
 
     /**
      * @param string $name
+     * @param string $namespace
      * @param DOMElement $schemaElement
      * @return string
      */
-    private function toQualifiedName($name, DOMElement $schemaElement)
+    private function toQualifiedName($name, $namespace, DOMElement $schemaElement)
     {
-        $namespace = (string)$schemaElement->getAttribute('xmlns');
+        // If namespace is blank, try to get it from the top element
+        if ((string)$namespace === '') {
+            $namespace = (string)$schemaElement->getAttribute('xmlns');
+        }
 
         // Check if an alias is defined for the parent type
         if (strpos($name, ':') !== false) {
