@@ -289,7 +289,8 @@ EOF
             ->setBody($setterBody)
             ->setParameter(array_merge([
                 'name' => $field->getName(),
-            ], $setterTypeHint !== null ? ['type' => $setterTypeHint] : []))
+            ], $setterTypeHint !== null ? ['type' => $setterTypeHint] : [],
+                $field->isNillable() ? ['defaultValue' => null] : []))
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Setter for ' . $field->getName())
                 ->setLongDescription($field->getDescription())
