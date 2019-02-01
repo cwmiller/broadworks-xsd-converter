@@ -59,7 +59,6 @@ class TraitWriter
      * @param Type[] $types
      * @throws \RuntimeException
      * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
-     * @throws \ReflectionException
      */
     public function write(array $types)
     {
@@ -86,6 +85,16 @@ class TraitWriter
                         'unqualified' => $this->unqualifiedType($responseType, $this->modelNamespace)
                     ];
                 }, $type->getResponseTypes());
+
+                if (count($responseTypes) === 0) {
+                    throw new RuntimeException('No response types for ' . $type->getName());
+                }
+
+                foreach ($responseTypes as $responseType) {
+                    if (strpos($responseType['unqualified'], 'Response') === false) {
+                        throw new RuntimeException('Response ' . $responseType['unqualified'] . ' for ' . $type->getName() . ' doesn\'t seem like a proper response type.');
+                    }
+                }
 
                 $trait->addUse($qualifiedRequestType);
                 //$trait->addUse('CWM\BroadWorksConnector\Ocip\ErrorResponseException');
