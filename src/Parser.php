@@ -183,7 +183,7 @@ class Parser
                 }
 
                 // Find any response objects listed in the documentation
-                if (preg_match('/The response is.*/s', $description, $responseMatches)) {
+                if (preg_match('/The response is.*/', $description, $responseMatches)) {
                     if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smpv]+)?/i', $responseMatches[0], $responseMatches)) {
                         $responseTypes = array_map(function($responseMatch) {
                             $responseMatch = trim($responseMatch);
@@ -200,10 +200,6 @@ class Parser
 
                             return $type !== '' &&  $type !== 'ErrorResponse';
                         });
-
-                        if (count($responseTypes) === 0) {
-                            throw new RuntimeException('No responses found for ' . $name);
-                        }
 
                         $complexType->setResponseTypes($responseTypes);
                     }

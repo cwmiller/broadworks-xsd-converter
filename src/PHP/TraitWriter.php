@@ -90,6 +90,10 @@ class TraitWriter
                     throw new RuntimeException('No response types for ' . $type->getName());
                 }
 
+                if (count($responseTypes) > 1) {
+                    throw new RuntimeException('More than one response type for ' . $type->getName());
+                }
+
                 foreach ($responseTypes as $responseType) {
                     if (strpos($responseType['unqualified'], 'Response') === false) {
                         throw new RuntimeException('Response ' . $responseType['unqualified'] . ' for ' . $type->getName() . ' doesn\'t seem like a proper response type.');
