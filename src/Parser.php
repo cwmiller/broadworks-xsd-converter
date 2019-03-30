@@ -351,18 +351,39 @@ class Parser
      */
     private function handleSimpleField(DOMElement $element, DOMElement $schemaElement, $fieldName, $ownerName, $ownerNamespace)
     {
-        $restriction = null;
+        /*
+        $restrictionBase = null;
         $simpleTypeElements = $element->getElementsByTagName('simpleType');
 
         if ($simpleTypeElements->length > 0) {
             $restrictionElements = $element->getElementsByTagName('restriction');
             if ($restrictionElements->length > 0) {
-                $restriction = $restrictionElements->item(0)->getAttribute('base');
+                $restrictionElement = $restrictionElements->item(0);
+                if ($restrictionElement !== null) {
+                    $restrictionBase = $restrictionElement->getAttribute('base');
+
+                    // Find value restrictions
+                    for ($i = 0; $i < $restrictionElement->childNodes->length; $i++) {
+                        $childNode = $restrictionElement->childNodes->item($i);
+                        $nodeName = trim($childNode->localName);
+                        if ($nodeName !== '') {
+                            echo 'field: ' . $nodeName . PHP_EOL;
+
+                        }
+                    }
+                }
             }
         }
 
-        if ($restriction === null || $restriction === '') {
+        if ($restrictionBase === null || $restrictionBase === '') {
             throw new RuntimeException('Expected base attribute not found');
+        }
+        */
+
+        $restriction = $this->findRestriction($element, $schemaElement, $ownerNamespace);
+
+        if ($restriction === null) {
+            throw new \RuntimeException('No restriction found for element.');
         }
 
         // Create a new simple type to represent this field
@@ -370,7 +391,7 @@ class Parser
 
         $this->addType((new SimpleType())
             ->setName($typeName)
-            ->setRestriction($this->toQualifiedName($restriction, $ownerNamespace, $schemaElement)));
+            ->setRestriction($restriction));
 
         return $this->toQualifiedName($typeName, $ownerNamespace, $schemaElement);
     }
@@ -419,30 +440,6 @@ class Parser
 
         $name = $this->toQualifiedName($name, $namespace, $schemaElement);
 
-        // Get type restriction
-        $restriction = null;
-        $restrictionElements = $element->getElementsByTagName('restriction');
-        $enumerations = [];
-
-        if ($restrictionElements->length > 0) {
-            $restriction = $restrictionElements->item(0)->getAttribute('base');
-
-            // Get enumerations if there are any
-            $enumerationElements = $restrictionElements->item(0)->getElementsByTagName('enumeration');
-            if ($enumerationElements->length > 0) {
-                for ($i = 0; $i < $enumerationElements->length; $i++) {
-                    $enumerationElement = $enumerationElements->item($i);
-                    $enumerations[] = $enumerationElement->getAttribute('value');
-                }
-            }
-        }
-
-        if ($restriction === null || $restriction === '') {
-            throw new RuntimeException('No restriction found for element.');
-        }
-
-        $restriction = $this->toQualifiedName($restriction, $namespace, $schemaElement);
-
         // Get description of type
         $description = null;
         $documentationElements = $element->getElementsByTagName('documentation');
@@ -451,9 +448,16 @@ class Parser
             $description = $documentationElements->item(0)->nodeValue;
         }
 
-        if (count($enumerations) > 0) {
+        // Get restriction of type
+        $restriction = $this->findRestriction($element, $schemaElement, $namespace);
+
+        if ($restriction === null) {
+            throw new \RuntimeException('No restriction found for element.');
+        }
+
+        if (count($restriction->getEnumerations()) > 0) {
             $type = (new EnumType())
-                ->setOptions($enumerations);
+                ->setOptions($restriction->getEnumerations());
         } else {
             $type = new SimpleType();
         }
@@ -467,6 +471,76 @@ class Parser
         $this->addType($type);
 
         return $type;
+    }
+
+    /**
+     * @param DOMElement $element
+     * @param DOMElement $schemaElement
+     * @param string $namespace
+     * @return Restriction|null
+     */
+    private function findRestriction(DOMElement $element, DOMElement $schemaElement, $namespace)
+    {
+        $restriction = null;
+
+
+        $restrictionElements = $element->getElementsByTagName('restriction');
+
+        if ($restrictionElements->length > 0) {
+            $restrictionElement = $restrictionElements->item(0);
+            if ($restrictionElement !== null) {
+                $restrictionBase = $restrictionElement->getAttribute('base');
+
+                if ($restrictionBase === null || $restrictionBase === '') {
+                    throw new RuntimeException('No restriction base found for element.');
+                }
+
+                $restriction = (new Restriction())
+                    ->setBase($this->toQualifiedName($restrictionBase, $namespace, $schemaElement));
+
+                for ($i = 0; $i < $restrictionElement->childNodes->length; $i++) {
+                    $childNode = $restrictionElement->childNodes->item($i);
+                    if ($childNode !== null) {
+                        $nodeName = trim($childNode->localName);
+                        if ($nodeName !== '') {
+                            $nodeValue = $childNode->attributes->getNamedItem('value')->nodeValue;
+
+                            switch ($nodeName) {
+                                case 'enumeration':
+                                    $restriction->addEnumeration($nodeValue);
+                                    break;
+                                case 'minLength':
+                                    $restriction->setMinLength($nodeValue);
+                                    break;
+                                case 'maxLength':
+                                    $restriction->setMaxLength($nodeValue);
+                                    break;
+                                case 'length':
+                                    $restriction->setLength($nodeValue);
+                                    break;
+                                case 'minInclusive':
+                                    $restriction->setMinInclusive($nodeValue);
+                                    break;
+                                case 'maxInclusive':
+                                    $restriction->setMaxInclusive($nodeValue);
+                                    break;
+                                case 'pattern':
+                                    $restriction->setPattern($nodeValue);
+                                    break;
+                                case 'whiteSpace':
+                                    $restriction->setWhiteSpace($nodeValue);
+                                    break;
+                                default:
+                                    echo 'Unknown restriction: ' . $nodeName . PHP_EOL;
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+
+        return $restriction;
     }
 
     /**

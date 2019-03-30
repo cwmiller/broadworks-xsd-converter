@@ -226,6 +226,8 @@ class ModelWriter
             $propertyTags[] = new GenericTag('Group', $field->getGroupId());
         }
 
+        $propertyTags = array_merge($propertyTags, $this->buildRestrictionTagsForProperty($field, $allTypes));
+
         $propertyTags[] = new GenericTag('var', implode('|', $propertyTypeAnnotation));
 
         // Create private property for field
@@ -353,7 +355,7 @@ EOF
         $unqualifiedClassName = array_pop($namespaceSegments);
         $namespace = implode('\\', $namespaceSegments);
 
-        $valueType = TypeUtils::xsdToPrimitiveType($type->getRestriction());
+        $valueType = TypeUtils::xsdToPrimitiveType($type->getRestriction()->getBase());
 
         // Create class
         $class = (new ClassGenerator())
@@ -431,6 +433,57 @@ EOF
     }
 
     /**
+     * Returns an array of GenericTag for a property
+     *
+     * @param Field $field
+     * @param array $allTypes
+     * @return array
+     */
+    private function buildRestrictionTagsForProperty(Field $field, array $allTypes)
+    {
+        $tags = [];
+
+        if (array_key_exists($field->getTypeName(), $allTypes) && !TypeUtils::isXsdType($field->getTypeName())) {
+            $type = $allTypes[$field->getTypeName()];
+
+            if ($type instanceof SimpleType) {
+                $restriction = $type->getRestriction();
+                if ($restriction !== null) {
+                    if ($restriction->getLength() !== null) {
+                        $tags[] = new GenericTag('Length', $restriction->getLength());
+                    }
+
+                    if ($restriction->getMinLength() !== null) {
+                        $tags[] = new GenericTag('MinLength', $restriction->getMinLength());
+                    }
+
+                    if ($restriction->getMaxLength() !== null) {
+                        $tags[] = new GenericTag('MaxLength', $restriction->getMaxLength());
+                    }
+
+                    if ($restriction->getMinInclusive() !== null) {
+                        $tags[] = new GenericTag('MinInclusive', $restriction->getMinInclusive());
+                    }
+
+                    if ($restriction->getMaxInclusive() !== null) {
+                        $tags[] = new GenericTag('MaxInclusive', $restriction->getMaxInclusive());
+                    }
+
+                    if ($restriction->getPattern() !== null) {
+                        $tags[] = new GenericTag('Pattern', $restriction->getPattern());
+                    }
+
+                    if ($restriction->getWhiteSpace() !== null) {
+                        $tags[] = new GenericTag('Whitespace', $restriction->getWhiteSpace());
+                    }
+                }
+            }
+        }
+
+        return $tags;
+    }
+
+    /**
      * Retrieve the primitive PHP type for a SimpleType
      *
      * @param SimpleType $type
@@ -441,7 +494,7 @@ EOF
     {
         $phpType = null;
 
-        $restriction = $type->getRestriction();
+        $restriction = $type->getRestriction()->getBase();
         // Check if referenced type is an XSD type. If so, use a primitive type
         if (TypeUtils::isXsdType($restriction)) {
             $phpType = TypeUtils::xsdToPrimitiveType($restriction);
