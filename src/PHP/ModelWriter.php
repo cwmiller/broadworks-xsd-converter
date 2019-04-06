@@ -8,11 +8,9 @@ use CWM\BroadWorksXsdConverter\Field;
 use CWM\BroadWorksXsdConverter\Schema\Choice;
 use CWM\BroadWorksXsdConverter\Schema\Sequence;
 use CWM\BroadWorksXsdConverter\SimpleType;
-use CWM\BroadWorksXsdConverter\Tag;
 use CWM\BroadWorksXsdConverter\Type;
 use RuntimeException;
 use Zend\Code\Generator\ClassGenerator;
-use Zend\Code\Generator\DocBlock\Tag\GenericTag;
 use Zend\Code\Generator\DocBlock\Tag\MethodTag;
 use Zend\Code\Generator\DocBlock\Tag\ParamTag;
 use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
@@ -138,12 +136,12 @@ class ModelWriter
 
         // Annotations for the complex type. Start out with @see tags for references
         $tags = array_map(function($reference) {
-            return new GenericTag('see', $reference);
+            return new Tag('see', $reference);
         }, $type->getReferences());
 
         // Add @Groups tags containing details about the sequence & choice elements
         if (count($type->getGroups()) > 0) {
-            $tags[] = new GenericTag('Groups', self::buildGroupJson($type->getGroups()));
+            $tags[] = new Tag('Groups', self::buildGroupJson($type->getGroups()));
         }
 
         // Create class
@@ -188,15 +186,15 @@ class ModelWriter
 
         // Custom annotations placed on this field's property
         $propertyTags = [
-            new GenericTag('ElementName', $field->getName()),
-            new GenericTag('Type', $phpType)
+            new Tag('ElementName', $field->getName()),
+            new Tag('Type', $phpType)
         ];
 
         if ($field->isArray()) {
             $propertyTypeAnnotation[] = $phpType . '[]';
             $getterTypeAnnotation[] = $phpType . '[]';
 
-            $propertyTags[] = new GenericTag('Array');
+            $propertyTags[] = new Tag('Array');
         } else {
             $propertyTypeAnnotation[] = $phpType;
             $propertyTypeAnnotation[] = 'null';
@@ -206,7 +204,7 @@ class ModelWriter
         // If nillable, the property gets tagged as such and can be set the Nil class to indicate it's set to nil.
         // The setter will then accept NULL to set the field as nil
         if ($field->isNillable()) {
-            $propertyTags[] = new GenericTag('Nillable');
+            $propertyTags[] = new Tag('Nillable');
             $getterTypeAnnotation[] = 'null';
             $propertyTypeAnnotation[] = $this->nilClassname;
         }
@@ -218,17 +216,17 @@ class ModelWriter
 
         // Add Optional annotation if the field is explicitly optional
         if ($field->isOptional()) {
-            $propertyTags[] = new GenericTag('Optional');
+            $propertyTags[] = new Tag('Optional');
         }
 
         // Group is a unique ID representing the parent element containing the field
         if ($field->getGroupId() !== null) {
-            $propertyTags[] = new GenericTag('Group', $field->getGroupId());
+            $propertyTags[] = new Tag('Group', $field->getGroupId());
         }
 
         $propertyTags = array_merge($propertyTags, $this->buildRestrictionTagsForProperty($field, $allTypes));
 
-        $propertyTags[] = new GenericTag('var', implode('|', $propertyTypeAnnotation));
+        $propertyTags[] = new Tag('var', implode('|', $propertyTypeAnnotation));
 
         // Create private property for field
         $property = (new PropertyGenerator())
@@ -370,11 +368,11 @@ EOF
                 // * @method tags for each option
                 // * @EnumValueType contains the primitive type (int, string) of the enum
                 'tags' => array_merge(array_map(function($reference) {
-                    return new GenericTag('see', $reference);
+                    return new Tag('see', $reference);
                 }, $type->getReferences()), array_map(function($option) use($unqualifiedClassName) {
                     return new MethodTag(TypeUtils::constantIdentifierForValue($option), $unqualifiedClassName, null, true);
                 }, $type->getOptions()), [
-                    new GenericTag('EnumValueType', $valueType)
+                    new Tag('EnumValueType', $valueType)
                 ])
             ]));
 
@@ -433,7 +431,7 @@ EOF
     }
 
     /**
-     * Returns an array of GenericTag for a property
+     * Returns an array of Tag for a property
      *
      * @param Field $field
      * @param array $allTypes
@@ -450,31 +448,31 @@ EOF
                 $restriction = $type->getRestriction();
                 if ($restriction !== null) {
                     if ($restriction->getLength() !== null) {
-                        $tags[] = new GenericTag('Length', $restriction->getLength());
+                        $tags[] = new Tag('Length', $restriction->getLength());
                     }
 
                     if ($restriction->getMinLength() !== null) {
-                        $tags[] = new GenericTag('MinLength', $restriction->getMinLength());
+                        $tags[] = new Tag('MinLength', $restriction->getMinLength());
                     }
 
                     if ($restriction->getMaxLength() !== null) {
-                        $tags[] = new GenericTag('MaxLength', $restriction->getMaxLength());
+                        $tags[] = new Tag('MaxLength', $restriction->getMaxLength());
                     }
 
                     if ($restriction->getMinInclusive() !== null) {
-                        $tags[] = new GenericTag('MinInclusive', $restriction->getMinInclusive());
+                        $tags[] = new Tag('MinInclusive', $restriction->getMinInclusive());
                     }
 
                     if ($restriction->getMaxInclusive() !== null) {
-                        $tags[] = new GenericTag('MaxInclusive', $restriction->getMaxInclusive());
+                        $tags[] = new Tag('MaxInclusive', $restriction->getMaxInclusive());
                     }
 
                     if ($restriction->getPattern() !== null) {
-                        $tags[] = new GenericTag('Pattern', $restriction->getPattern());
+                        $tags[] = new Tag('Pattern', $restriction->getPattern());
                     }
 
                     if ($restriction->getWhiteSpace() !== null) {
-                        $tags[] = new GenericTag('Whitespace', $restriction->getWhiteSpace());
+                        $tags[] = new Tag('Whitespace', $restriction->getWhiteSpace());
                     }
                 }
             }
