@@ -111,9 +111,9 @@ class Parser
 
         if ($this->debug) {
             if ($type instanceof EnumType) {
-                echo sprintf('Found Enum Type: %s', $type->getName()) . ' (' . $type->getRestriction() . ') (' . implode(', ', $type->getOptions()) . ')' . PHP_EOL;
+                echo sprintf('Found Enum Type: %s', $type->getName()) . ' (' . $type->getRestriction()->getBase() . ') (' . implode(', ', $type->getOptions()) . ')' . PHP_EOL;
             } else if ($type instanceof SimpleType) {
-                echo sprintf('Found Simple Type: %s', $type->getName()) . ' (' . $type->getRestriction() . ')' . PHP_EOL;
+                echo sprintf('Found Simple Type: %s', $type->getName()) . ' (' . $type->getRestriction()->getBase() . ')' . PHP_EOL;
             } else if ($type instanceof ComplexType) {
                 echo sprintf('Found Complex Type: %s', $type->getName()) . PHP_EOL;
 
