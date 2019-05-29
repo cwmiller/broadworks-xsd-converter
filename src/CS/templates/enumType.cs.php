@@ -11,6 +11,7 @@ namespace <?= $template->getNamespace() ?>
 
 {
 [Serializable]
+[XmlRoot(Namespace = "<?php echo $template->getXmlNamespace() ?>")]
 public enum <?= $template->getName() ?>
 {
 <?php foreach ($template->getOptions() as $option) { ?>

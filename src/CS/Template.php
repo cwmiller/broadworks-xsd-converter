@@ -13,6 +13,9 @@ abstract class Template
     private $namespace;
 
     /** @var string */
+    private $xmlNamespace = '';
+
+    /** @var string */
     private $documentation;
 
     /** @var Tag[] */
@@ -69,6 +72,24 @@ abstract class Template
     public function setNamespace($namespace)
     {
         $this->namespace = $namespace;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getXmlNamespace()
+    {
+        return $this->xmlNamespace;
+    }
+
+    /**
+     * @param string $xmlNamespace
+     * @return $this
+     */
+    public function setXmlNamespace($xmlNamespace)
+    {
+        $this->xmlNamespace = $xmlNamespace;
         return $this;
     }
 

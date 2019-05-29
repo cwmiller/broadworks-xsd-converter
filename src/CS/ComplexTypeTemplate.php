@@ -12,6 +12,9 @@ class ComplexTypeTemplate extends Template
     /** @var Property[] */
     private $properties = [];
 
+    /** @var string[] */
+    private $childClasses = [];
+
     /**
      * @return bool
      */
@@ -66,5 +69,22 @@ class ComplexTypeTemplate extends Template
         return $this;
     }
 
+    /**
+     * @return string[]
+     */
+    public function getChildClasses()
+    {
+        return $this->childClasses;
+    }
+
+    /**
+     * @param string[] $childClasses
+     * @return ComplexTypeTemplate
+     */
+    public function setChildClasses($childClasses)
+    {
+        $this->childClasses = $childClasses;
+        return $this;
+    }
 
 }

@@ -11,14 +11,15 @@ namespace <?= $template->getNamespace() ?>
 
 {
 [Serializable]
+[XmlRoot(Namespace = "<?php echo $template->getXmlNamespace() ?>")]
+<?php foreach ($template->getChildClasses() as $childClass) { ?>
+[XmlInclude(typeof(<?php echo $childClass ?>))]
+<?php } ?>
 public <?= $template->isAbstract() ? 'abstract' : '' ?> class <?= $template->getName() ?> <?= $template->getParentClass() !== null ? (': ' . $template->getParentClass()) : '' ?>
 
 {
 <?php foreach ($template->getProperties() as $property) { ?>
-    [XmlElement(ElementName = "<?= $property->getElementName() ?>")]
-    <?php if ($property->isNillable()) { ?>
-    [XmlElement(IsNullable = true)]
-    <?php } ?>
+    [XmlElement(ElementName = "<?= $property->getElementName() ?>", IsNullable = <?php echo $property->isNillable() ? 'true' : 'false' ?>)]
     public <?= $property->getType() ?> <?= $property->getName() ?> { get; set; }
 <?php } ?> }
 }

@@ -83,4 +83,50 @@ abstract class TypeUtils
         return ucwords($constName);
     }
 
+    public static function isPrimitiveType($type) {
+        switch ($type) {
+            case 'bool':
+            case 'byte':
+            case 'sbyte':
+            case 'char':
+            case 'decimal':
+            case 'double':
+            case 'float':
+            case 'int':
+            case 'uint':
+            case 'long':
+            case 'ulong':
+            case 'object':
+            case 'short':
+            case 'ushort':
+            case 'string':
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static function isValueType($type) {
+        switch ($type) {
+            case 'bool':
+            case 'byte':
+            case 'char':
+            case 'decimal':
+            case 'double':
+            case 'enum':
+            case 'float':
+            case 'int':
+            case 'long':
+            case 'sbyte':
+            case 'short':
+            case 'struct':
+            case 'uint':
+            case 'ulong':
+            case 'ushort':
+                return true;
+            default:
+                return false;
+        }
+    }
+
 }

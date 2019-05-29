@@ -86,7 +86,7 @@ class ModelWriter
     }
 
     /**
-     * @param ComplexTypeTemplate $type
+     * @param ComplexType $type
      * @param Type[] $allTypes
      * @return ComplexTypeTemplate
      */
@@ -100,7 +100,9 @@ class ModelWriter
             )
         );
 
-        $unqualifiedClassName = array_pop($namespaceSegments);
+        list($xmlNamespace, $unqualifiedClassName) = explode(':', $type->getName());
+
+        array_pop($namespaceSegments);
         $namespace = implode('.', $namespaceSegments);
 
         $usings = ['System.Collections.Generic'];
@@ -122,11 +124,24 @@ class ModelWriter
             $tags[] = new Tag('Groups', self::buildGroupJson($type->getGroups()));
         }
 
+        // Find all types that extend this class
+        $childClassNames = [];
+
+        foreach ($allTypes as $otherType) {
+            if ($otherType instanceof ComplexType) {
+                if ($otherType->getParentName() === $type->getName()) {
+                    $childClassNames[] = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $otherType->getName());
+                }
+            }
+        }
+
         return (new ComplexTypeTemplate())
             ->setUsings($usings)
-            ->setName($unqualifiedClassName)
+            ->setName(trim($unqualifiedClassName))
             ->setNamespace($namespace)
+            ->setXmlNamespace(trim($xmlNamespace))
             ->setParentClass($qualifiedParentClassName)
+            ->setChildClasses($childClassNames)
             ->setIsAbstract($type->isAbstract())
             ->setDocumentation($type->getDescription())
             ->setTags($tags)
@@ -163,10 +178,17 @@ class ModelWriter
             $propertyType = $csType;
         }
 
-        // If nillable, the property gets tagged as such and can be set the Nil class to indicate it's set to nil.
-        // The setter will then accept NULL to set the field as nil
+        // If nillable, the property when set to null will not be omitted. Instead, it will be sent in the response with the nil=true attribute
         if ($field->isNillable()) {
             $propertyTags[] = new Tag('Nillable');
+
+            // Primitive value types need to be wrapped in Nullable<> as do enums
+            // Arrays are ignored though since they become Lists
+            $isEnumType = isset($allTypes[$field->getTypeName()]) && $allTypes[$field->getTypeName()] instanceof EnumType;
+
+            if (($isEnumType || TypeUtils::isValueType($csType)) && !$field->isArray()) {
+                $propertyType .= '?';
+            }
         }
 
         // Add Optional annotation if the field is explicitly optional
@@ -203,7 +225,9 @@ class ModelWriter
             )
         );
 
-        $unqualifiedClassName = array_pop($namespaceSegments);
+        list($xmlNamespace, $unqualifiedName) = explode(':', $type->getName());
+
+        array_pop($namespaceSegments);
         $namespace = implode('.', $namespaceSegments);
 
         $usings = [];
@@ -214,8 +238,9 @@ class ModelWriter
 
         return (new EnumTypeTemplate())
             ->setUsings($usings)
-            ->setName($unqualifiedClassName)
+            ->setName(trim($unqualifiedName))
             ->setNamespace($namespace)
+            ->setXmlNamespace(trim($xmlNamespace))
             ->setOptions($enumOptions)
             ->setDocumentation($type->getDescription());
     }
