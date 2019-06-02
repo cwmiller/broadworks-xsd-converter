@@ -19,7 +19,7 @@ public <?= $template->isAbstract() ? 'abstract' : '' ?> class <?= $template->get
 
 {
 <?php foreach ($template->getProperties() as $property) { ?>
-    [XmlElement(ElementName = "<?= $property->getElementName() ?>", IsNullable = <?php echo $property->isNillable() ? 'true' : 'false' ?>)]
+    [XmlElement(ElementName = "<?= $property->getElementName() ?>", IsNullable = <?php echo $property->isNillable() ? 'true' : 'false' ?>, Namespace = "")]
     public <?= $property->getType() ?> <?= $property->getName() ?> { get; set; }
 <?php } ?> }
 }
