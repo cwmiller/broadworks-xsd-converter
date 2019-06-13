@@ -18,6 +18,9 @@ abstract class Template
     /** @var string */
     private $documentation;
 
+    /** @var string[] */
+    private $references = [];
+
     /** @var Tag[] */
     private $tags = [];
 
@@ -126,6 +129,24 @@ abstract class Template
     public function setTags($tags)
     {
         $this->tags = $tags;
+        return $this;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getReferences()
+    {
+        return $this->references;
+    }
+
+    /**
+     * @param string[] $references
+     * @return $this
+     */
+    public function setReferences($references)
+    {
+        $this->references = $references;
         return $this;
     }
 }

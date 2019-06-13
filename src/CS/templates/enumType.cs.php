@@ -10,12 +10,19 @@ use CWM\BroadWorksXsdConverter\CS\EnumTypeTemplate; ?>
 namespace <?= $template->getNamespace() ?>
 
 {
-[Serializable]
-[XmlRoot(Namespace = "<?php echo $template->getXmlNamespace() ?>")]
-public enum <?= $template->getName() ?>
-{
-<?php foreach ($template->getOptions() as $option) { ?>
-    [XmlEnum(Name = "<?php echo $option->getValue() ?>")]
-    <?php echo $option->getOption() ?>,
-<?php } ?> }
+    /// <summary>
+    /// <?php echo implode("\n    /// ", array_map('trim', explode("\n", $template->getDocumentation()))) ?>
+
+    <?php foreach ($template->getReferences() as $reference) { ?>
+        /// <see cref="<?php echo $reference ?>"/>
+    <?php } ?>
+    /// </summary>
+    [Serializable]
+    [XmlRoot(Namespace = "<?php echo $template->getXmlNamespace() ?>")]
+    public enum <?= $template->getName() ?>
+    {
+    <?php foreach ($template->getOptions() as $option) { ?>
+        [XmlEnum(Name = "<?php echo $option->getValue() ?>")]
+        <?php echo $option->getOption() ?>,
+    <?php } ?> }
 }

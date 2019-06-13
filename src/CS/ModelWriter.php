@@ -144,6 +144,7 @@ class ModelWriter
             ->setChildClasses($childClassNames)
             ->setIsAbstract($type->isAbstract())
             ->setDocumentation($type->getDescription())
+            ->setReferences($type->getReferences())
             ->setTags($tags)
             ->setProperties(array_map(function($field) use($allTypes) {
                 return $this->generateProperty($field, $allTypes);
