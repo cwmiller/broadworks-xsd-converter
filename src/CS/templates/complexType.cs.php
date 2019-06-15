@@ -21,7 +21,7 @@ namespace <?= $template->getNamespace() ?>
     [XmlRoot(Namespace = "<?php echo $template->getXmlNamespace() ?>")]
     <?php foreach ($template->getChildClasses() as $childClass) { ?>
     [XmlInclude(typeof(<?php echo $childClass ?>))]
-    <?php } ?> <?= "\n\r"  ?>
+    <?php } ?> <?= PHP_EOL  ?>
     public <?= $template->isAbstract() ? 'abstract ' : '' ?>class <?= $template->getName() ?> <?= $template->getParentClass() !== null ? (': ' . $template->getParentClass()) : '' ?>
 
     {
