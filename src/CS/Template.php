@@ -21,8 +21,8 @@ abstract class Template
     /** @var string[] */
     private $references = [];
 
-    /** @var Tag[] */
-    private $tags = [];
+    /** @var Annotation[] */
+    private $annotations = [];
 
     /**
      * @return string[]
@@ -115,24 +115,6 @@ abstract class Template
     }
 
     /**
-     * @return Tag[]
-     */
-    public function getTags()
-    {
-        return $this->tags;
-    }
-
-    /**
-     * @param Tag[] $tags
-     * @return $this
-     */
-    public function setTags($tags)
-    {
-        $this->tags = $tags;
-        return $this;
-    }
-
-    /**
      * @return string[]
      */
     public function getReferences()
@@ -147,6 +129,24 @@ abstract class Template
     public function setReferences($references)
     {
         $this->references = $references;
+        return $this;
+    }
+
+    /**
+     * @return Annotation[]
+     */
+    public function getAnnotations()
+    {
+        return $this->annotations;
+    }
+
+    /**
+     * @param Annotation[] $annotations
+     * @return $this
+     */
+    public function setAnnotations($annotations)
+    {
+        $this->annotations = $annotations;
         return $this;
     }
 }

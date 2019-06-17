@@ -19,13 +19,17 @@ class ModelWriter
     /** @var string */
     private $baseNamespace;
 
+    /** @var string */
+    private $validationNamespace;
+
     /** @var bool */
     private $debug;
 
-    public function __construct($outDir, $baseNamespace, $debug = false)
+    public function __construct($outDir, $baseNamespace, $validationNamespace, $debug = false)
     {
         $this->outDir = $outDir;
         $this->baseNamespace = $baseNamespace;
+        $this->validationNamespace = $validationNamespace;
         $this->debug = $debug;
     }
 
@@ -105,7 +109,11 @@ class ModelWriter
         array_pop($namespaceSegments);
         $namespace = implode('.', $namespaceSegments);
 
-        $usings = ['System.Collections.Generic'];
+        $usings = [
+            $this->validationNamespace,
+            'System.Collections.Generic'
+        ];
+        $annotations = [];
 
         // Construct the fully qualified class name for the parent class if this type is a sub-type
         $qualifiedParentClassName = null;
@@ -114,14 +122,9 @@ class ModelWriter
             $qualifiedParentClassName = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $type->getParentName());
         }
 
-        // Annotations for the complex type. Start out with @see tags for references
-        $tags = array_map(function($reference) {
-            return new Tag('see', $reference);
-        }, $type->getReferences());
-
-        // Add @Groups tags containing details about the sequence & choice elements
+        // Add Groups annotation containing details about the sequence & choice elements
         if (count($type->getGroups()) > 0) {
-            $tags[] = new Tag('Groups', self::buildGroupJson($type->getGroups()));
+            $annotations[] = new Annotation('Groups', self::buildGroupJson($type->getGroups()));
         }
 
         // Find all types that extend this class
@@ -145,7 +148,7 @@ class ModelWriter
             ->setIsAbstract($type->isAbstract())
             ->setDocumentation($type->getDescription())
             ->setReferences($type->getReferences())
-            ->setTags($tags)
+            ->setAnnotations($annotations)
             ->setProperties(array_map(function($field) use($allTypes) {
                 return $this->generateProperty($field, $allTypes);
             }, $type->getFields()));
@@ -167,22 +170,16 @@ class ModelWriter
         // Contains the type annotation for the this field's property
         $propertyType = null;
 
-        // Custom annotations placed on this field's property
-        $propertyTags = [
-            new Tag('ElementName', $field->getName()),
-            new Tag('Type', $csType)
-        ];
-
         if ($field->isArray()) {
             $propertyType = 'List<' . $csType . '>';
         } else {
             $propertyType = $csType;
         }
 
+        $defaultValue = $field->isArray() ? 'new List<' . $csType . '>()' : null;
+
         // If nillable, the property when set to null will not be omitted. Instead, it will be sent in the response with the nil=true attribute
         if ($field->isNillable()) {
-            $propertyTags[] = new Tag('Nillable');
-
             // Primitive value types need to be wrapped in Nullable<> as do enums
             // Arrays are ignored though since they become Lists
             $isEnumType = isset($allTypes[$field->getTypeName()]) && $allTypes[$field->getTypeName()] instanceof EnumType;
@@ -194,22 +191,23 @@ class ModelWriter
 
         // Add Optional annotation if the field is explicitly optional
         if ($field->isOptional()) {
-            $propertyTags[] = new Tag('Optional');
+            $propertyAnnotations[] = new Annotation('Optional');
         }
 
         // Group is a unique ID representing the parent element containing the field
         if ($field->getGroupId() !== null) {
-            $propertyTags[] = new Tag('Group', $field->getGroupId());
+            $propertyAnnotations[] = new Annotation('Group', $field->getGroupId());
         }
 
-        $propertyTags = array_merge($propertyTags, $this->buildRestrictionTagsForProperty($field, $allTypes));
+        $propertyAnnotations = array_merge($propertyAnnotations, $this->buildRestrictionAnnotationsForProperty($field, $allTypes));
 
         return (new Property())
             ->setName(ucwords($field->getName()))
             ->setElementName($field->getName())
             ->setIsNillable($field->isNillable())
             ->setType($propertyType)
-            ->setTags($propertyTags);
+            ->setAnnotations($propertyAnnotations)
+            ->setDefaultValue($defaultValue);
     }
 
     /**
@@ -329,15 +327,15 @@ class ModelWriter
      * @param Sequence[]|Choice[] $groups
      * @return string
      */
-    private static function buildGroupJson(array $groups)
+    private function buildGroupJson(array $groups)
     {
         $convert = function($group) use (&$convert) {
             /** @var Sequence|Choice $group */
             $json = [
-                'id' => $group->getId(),
-                'type' => ($group instanceof Sequence)
-                    ? 'sequence'
-                    : 'choice'
+                '__type' => ($group instanceof Sequence)
+                    ? 'Sequence:#' . $this->validationNamespace
+                    : 'Choice:#' . $this->validationNamespace,
+                'id' => $group->getId()
             ];
 
             if (($group instanceof Choice) && $group->isOptional()) {
@@ -355,15 +353,15 @@ class ModelWriter
     }
 
     /**
-     * Returns an array of Tag for a property
+     * Returns an array of Annotations for a property
      *
      * @param Field $field
      * @param array $allTypes
      * @return array
      */
-    private function buildRestrictionTagsForProperty(Field $field, array $allTypes)
+    private function buildRestrictionAnnotationsForProperty(Field $field, array $allTypes)
     {
-        $tags = [];
+        $annotations = [];
 
         if (array_key_exists($field->getTypeName(), $allTypes) && !TypeUtils::isXsdType($field->getTypeName())) {
             $type = $allTypes[$field->getTypeName()];
@@ -372,37 +370,33 @@ class ModelWriter
                 $restriction = $type->getRestriction();
                 if ($restriction !== null) {
                     if ($restriction->getLength() !== null) {
-                        $tags[] = new Tag('Length', $restriction->getLength());
+                        $annotations[] = new Annotation('Length', $restriction->getLength());
                     }
 
                     if ($restriction->getMinLength() !== null) {
-                        $tags[] = new Tag('MinLength', $restriction->getMinLength());
+                        $annotations[] = new Annotation('MinLength', $restriction->getMinLength());
                     }
 
                     if ($restriction->getMaxLength() !== null) {
-                        $tags[] = new Tag('MaxLength', $restriction->getMaxLength());
+                        $annotations[] = new Annotation('MaxLength', $restriction->getMaxLength());
                     }
 
                     if ($restriction->getMinInclusive() !== null) {
-                        $tags[] = new Tag('MinInclusive', $restriction->getMinInclusive());
+                        $annotations[] = new Annotation('MinInclusive', $restriction->getMinInclusive());
                     }
 
                     if ($restriction->getMaxInclusive() !== null) {
-                        $tags[] = new Tag('MaxInclusive', $restriction->getMaxInclusive());
+                        $annotations[] = new Annotation('MaxInclusive', $restriction->getMaxInclusive());
                     }
 
                     if ($restriction->getPattern() !== null) {
-                        $tags[] = new Tag('Pattern', $restriction->getPattern());
-                    }
-
-                    if ($restriction->getWhiteSpace() !== null) {
-                        $tags[] = new Tag('Whitespace', $restriction->getWhiteSpace());
+                        $annotations[] = new Annotation('RegularExpression', $restriction->getPattern());
                     }
                 }
             }
         }
 
-        return $tags;
+        return $annotations;
     }
 
 }

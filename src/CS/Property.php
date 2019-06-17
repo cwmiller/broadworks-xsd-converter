@@ -15,8 +15,11 @@ class Property
     /** @var string */
     private $type;
 
-    /** @var Tag[] */
-    private $tags = [];
+    /** @var Annotation[] */
+    private $annotations = [];
+
+    /** @var null|string */
+    private $defaultValue = null;
 
     /**
      * @return string
@@ -91,20 +94,38 @@ class Property
     }
 
     /**
-     * @return Tag[]
+     * @return Annotation[]
      */
-    public function getTags()
+    public function getAnnotations()
     {
-        return $this->tags;
+        return $this->annotations;
     }
 
     /**
-     * @param Tag[] $tags
+     * @param Annotation[] $annotations
      * @return $this
      */
-    public function setTags($tags)
+    public function setAnnotations($annotations)
     {
-        $this->tags = $tags;
+        $this->annotations = $annotations;
+        return $this;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getDefaultValue()
+    {
+        return $this->defaultValue;
+    }
+
+    /**
+     * @param string|null $defaultValue
+     * @return Property
+     */
+    public function setDefaultValue($defaultValue)
+    {
+        $this->defaultValue = $defaultValue;
         return $this;
     }
 }
