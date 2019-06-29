@@ -42,7 +42,7 @@ namespace <?= $template->getNamespace() ?>
         }
 
         [XmlIgnore]
-        public bool <?php echo $property->getName() ?>Specified { get; set; }
+        protected bool <?php echo $property->getName() ?>Specified { get; set; }
         <?php } ?>
 
     }
