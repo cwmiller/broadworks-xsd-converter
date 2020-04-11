@@ -209,6 +209,27 @@ class ModelWriter
             $propertyTypeAnnotation[] = $this->nilClassname;
         }
 
+        // Add Abstract annotation if the field's type is an abstract class.
+        // The concrete types that sub it will be listed.
+        if (array_key_exists($field->getTypeName(), $allTypes)) {
+            $type = $allTypes[$field->getTypeName()];
+
+            if ($type instanceof ComplexType) {
+                if ($type->isAbstract()) {
+                    $concreteTypes = [];
+
+                    foreach ($allTypes as $otherType) {
+                        if ($otherType instanceof ComplexType && $otherType->getParentName() === $field->getTypeName()) {
+                            $concreteTypes[] = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $otherType->getName());
+                        }
+                    }
+
+                    $propertyTags[] = new Tag('Abstract', implode(',', $concreteTypes));
+                }
+            }
+        }
+
+
         // If the field is an array, then the default value is a blank array. If not, then it's null.
         $defaultValue = $field->isArray()
             ? []
@@ -429,6 +450,8 @@ EOF
 
         return $phpType;
     }
+
+
 
     /**
      * Returns an array of Tag for a property
