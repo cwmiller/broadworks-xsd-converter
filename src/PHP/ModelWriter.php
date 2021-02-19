@@ -381,21 +381,17 @@ EOF
             ->setName($unqualifiedClassName)
             ->setNamespaceName($namespace)
             ->setExtendedClass(self::ENUM_BASE_TYPE)
-            ->setDocBlock(DocBlockGenerator::fromArray([
-                'shortDescription' => $unqualifiedClassName,
-                'longDescription' => $type->getDescription(),
-                // Create PHPDoc tags for the following:
-                // * @see references for related classes
-                // * @method tags for each option
-                // * @EnumValueType contains the primitive type (int, string) of the enum
-                'tags' => array_merge(array_map(function($reference) {
+            ->setDocBlock((new DocBlockGenerator())
+                ->setShortDescription($unqualifiedClassName)
+                ->setLongDescription($type->getDescription())
+                ->setTags(array_merge(array_map(function($reference) {
                     return new Tag('see', $reference);
                 }, $type->getReferences()), array_map(function($option) use($unqualifiedClassName) {
                     return new MethodTag(TypeUtils::constantIdentifierForValue($option), $unqualifiedClassName, null, true);
                 }, $type->getOptions()), [
                     new Tag('EnumValueType', $valueType)
-                ])
-            ]));
+                ]))
+                ->setWordWrap(false));
 
         // Create a const for each possible value
         foreach ($type->getOptions() as $option) {
