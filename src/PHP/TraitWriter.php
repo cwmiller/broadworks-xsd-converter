@@ -91,7 +91,8 @@ class TraitWriter
                 }
 
                 if (count($responseTypes) > 1) {
-                    throw new RuntimeException('More than one response type for ' . $type->getName());
+                    // throw new RuntimeException('More than one response type for ' . $type->getName());
+                    echo 'Multiple response types for ' . $type->getName()  . PHP_EOL;
                 }
 
                 foreach ($responseTypes as $responseType) {
