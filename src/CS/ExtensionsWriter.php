@@ -56,20 +56,25 @@ class ExtensionsWriter
                 $qualifiedRequestType = $this->qualifiedType($type->getName(), $this->modelNamespace);
                 $unqualifiedRequestType = $this->unqualifiedType($type->getName(), $this->modelNamespace);
 
+                $rawResponseTypes = $type->getResponseTypes();
+
+                if (count($rawResponseTypes) === 0) {
+                    throw new RuntimeException('No response types for ' . $type->getName());
+                }
+
+                if (count($rawResponseTypes) > 1) {
+                    // throw new RuntimeException('More than one response type for ' . $type->getName());
+                    echo 'Multiple response types for ' . $type->getName()  . '. Response type will be OCIResponse.' . PHP_EOL;
+
+                    $rawResponseTypes = [':C:OCIResponse'];
+                }
+
                 $responseTypes = array_map(function($responseType) {
                     return [
                         'qualified' => $this->qualifiedType($responseType, $this->modelNamespace),
                         'unqualified' => $this->unqualifiedType($responseType, $this->modelNamespace)
                     ];
-                }, $type->getResponseTypes());
-
-                if (count($responseTypes) === 0) {
-                    throw new RuntimeException('No response types for ' . $type->getName());
-                }
-
-                if (count($responseTypes) > 1) {
-                    throw new RuntimeException('More than one response type for ' . $type->getName());
-                }
+                }, $rawResponseTypes);
 
                 foreach ($responseTypes as $responseType) {
                     if (strpos($responseType['unqualified'], 'Response') === false) {

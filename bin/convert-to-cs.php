@@ -39,8 +39,3 @@ $modelWriter->write($types);
 
 $extensionsWriter = new ExtensionsWriter($outputDirectory, $modelNamespace, $extensionsNamespace, $errorResponseName, $debug);
 $extensionsWriter->write($types);
-
-/*
-$traitWriter = new TraitWriter($outputDirectory, $modelNamespace, $traitNamespace, $debug);
-$traitWriter->write($types);
-*/
