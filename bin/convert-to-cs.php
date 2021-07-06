@@ -11,31 +11,39 @@ if (is_file(__DIR__ . '/../../../autoload.php')) {
     require __DIR__ . '/../vendor/autoload.php';
 }
 
-$args = $argv;
-$opts = [];
+$defaults = [
+    'models-namespace' => 'BroadWorksConnector.Ocip.Models',
+    'extensions-namespace' => 'BroadWorksConnector',
+    'error-response-exception-class' => 'BroadWorksConnector.Ocip.ErrorResponseException',
+    'validation-namespace' => 'BroadWorksConnector.Ocip.Validation',
+    'input' => null,
+    'output' => null
+];
 
-$args = array_values(array_filter($argv, function($arg) {
-    return $arg[0] !== '-';
-}));
+$opts = array_merge($defaults, getopt('', [
+    'models-namespace:',
+    'extensions-namespace:',
+    'error-response-exception-class:',
+    'validation-namespace:',
+    'debug',
+    'output::',
+    'input::'
+]));
 
-$opts = array_values(array_filter($argv, function($arg) {
-    return $arg[0] === '-';
-}));
+$debug = isset($opts['debug']);
 
-if (count($args) < 7) {
-    echo sprintf('Usage: %s [-d] path-to-root-xsd output-directory models-namespace extensions-namespace error-response-exception-class validation-namespace', basename($args[0])) . PHP_EOL;
-    exit(-1);
+foreach ($defaults as $key => $defaultValue) {
+    if (strlen($opts[$key]) === 0) {
+        echo 'Option "' . $key . '" required' . PHP_EOL;
+        exit(-1);
+    }
 }
 
-list($_, $rootXsd, $outputDirectory, $modelNamespace, $extensionsNamespace, $errorResponseName, $validationNamespace) = $args;
-
-$debug = in_array('-d', $opts, true);
-
-$parser = new Parser($rootXsd, $debug);
+$parser = new Parser($opts['input'], $debug);
 $types = $parser->parse();
 
-$modelWriter = new ModelWriter($outputDirectory, $modelNamespace, $validationNamespace, $debug);
+$modelWriter = new ModelWriter($opts['output'], $opts['models-namespace'], $opts['validation-namespace'], $debug);
 $modelWriter->write($types);
 
-$extensionsWriter = new ExtensionsWriter($outputDirectory, $modelNamespace, $extensionsNamespace, $errorResponseName, $debug);
+$extensionsWriter = new ExtensionsWriter($opts['output'], $opts['models-namespace'], $opts['extensions-namespace'], $opts['error-response-exception-class'], $debug);
 $extensionsWriter->write($types);
