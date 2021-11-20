@@ -1,7 +1,6 @@
 #!/usr/bin/env php
 <?php
 
-use CWM\BroadWorksXsdConverter\CS\ExtensionsWriter;
 use CWM\BroadWorksXsdConverter\CS\ModelWriter;
 use CWM\BroadWorksXsdConverter\Parser;
 
@@ -44,6 +43,3 @@ $types = $parser->parse();
 
 $modelWriter = new ModelWriter($opts['output'], $opts['models-namespace'], $opts['validation-namespace'], $debug);
 $modelWriter->write($types);
-
-$extensionsWriter = new ExtensionsWriter($opts['output'], $opts['models-namespace'], $opts['extensions-namespace'], $opts['error-response-exception-class'], $debug);
-$extensionsWriter->write($types);

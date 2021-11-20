@@ -115,17 +115,14 @@ class ModelWriter
         ];
         $annotations = [];
 
-        // Construct the fully qualified class name for the parent class if this type is a sub-type
-        $qualifiedParentClassName = null;
-
-        if ($type->getParentName() !== null) {
-            $qualifiedParentClassName = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $type->getParentName());
-        }
-
         // Add Groups annotation containing details about the sequence & choice elements
         if (count($type->getGroups()) > 0) {
             $annotations[] = new Annotation('Groups', self::buildGroupJson($type->getGroups()));
         }
+
+        // Construct the fully qualified class name for the parent class if this type is a sub-type
+        //$qualifiedParentClassName = null;
+        $qualifiedParentClassName = $this->determineComplexParentClass($type);
 
         // Find all types that extend this class
         $childClassNames = [];
@@ -152,6 +149,46 @@ class ModelWriter
             ->setProperties(array_map(function($field) use($allTypes) {
                 return $this->generateProperty($field, $allTypes);
             }, $type->getFields()));
+    }
+
+    private function determineComplexParentClass(ComplexType $type)
+    {
+        $parentClass = null;
+
+        if ($type->getParentName() !== null) {
+            $parentClass = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $type->getParentName());
+
+            // OCIRequest is now OCIRequest<T> where T is the response type for the request.
+            // Find the appropriate response type for T
+            if ($type->getParentName() === 'C:OCIRequest') {
+                $rawResponseTypes = $type->getResponseTypes();
+
+                if (count($rawResponseTypes) === 0) {
+                    throw new RuntimeException('No response types for ' . $type->getName());
+                }
+
+                if (count($rawResponseTypes) > 1) {
+                    echo 'Multiple response types for ' . $type->getName()  . '. Response type will be OCIResponse.' . PHP_EOL;
+
+                    $rawResponseTypes = [':C:OCIResponse'];
+                }
+
+                $responseType = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $rawResponseTypes[0]);
+
+                if (strpos($responseType, 'Response') === false) {
+                    throw new RuntimeException('Response ' . $responseType . ' for ' . $type->getName() . ' doesn\'t seem like a proper response type.');
+                }
+
+                $parentClass .= '<' . $responseType . '>';
+
+                /*
+                $responseNamespace = explode('.', $responseType);
+                array_pop($responseNamespace);
+                */
+            }
+        }
+
+        return $parentClass;
     }
 
     /**
