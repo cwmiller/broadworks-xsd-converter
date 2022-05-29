@@ -69,7 +69,7 @@ class TraitWriter
                 if (!array_key_exists($traitName, $this->traits)) {
                     $trait = (new TraitGenerator())
                         ->setName($traitName)
-                        ->setNamespaceName($this->traitNamespace);
+                        ->setNamespaceName(ltrim($this->traitNamespace, '\\'));
 
                     $this->traits[$traitName] = $trait;
                 } else {
@@ -102,9 +102,8 @@ class TraitWriter
                 }
 
                 $trait->addUse($qualifiedRequestType);
-                //$trait->addUse('CWM\BroadWorksConnector\Ocip\ErrorResponseException');
-                $trait->addUse($this->errorResponseClassname);
-                $trait->addUse($this->validationClassname);
+                $trait->addUse(ltrim($this->errorResponseClassname, '\\'));
+                $trait->addUse(ltrim($this->validationClassname, '\\'));
                 foreach ($responseTypes as $responseType) {
                     $trait->addUse($responseType['qualified']);
                 }
