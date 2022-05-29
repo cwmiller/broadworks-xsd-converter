@@ -29,7 +29,7 @@ namespace <?= $template->getNamespace() ?>
     {
         <?php foreach ($template->getProperties() as $property) { ?>
 
-        private <?= $property->getType() ?> _<?= lcfirst($property->getName()) ?><?php echo $property->getDefaultValue() !== null ? (' = ' . $property->getDefaultValue()) : '' ?>;
+        protected <?= $property->getType() ?> _<?= lcfirst($property->getName()) ?><?php echo $property->getDefaultValue() !== null ? (' = ' . $property->getDefaultValue()) : '' ?>;
 
         [XmlElement(ElementName = "<?= $property->getElementName() ?>", IsNullable = <?php echo $property->isNillable() ? 'true' : 'false' ?>, Namespace = "")]
         <?=  implode(PHP_EOL, array_map(function($a) { return $a->generate(); }, $property->getAnnotations())) ?><?= PHP_EOL  ?>

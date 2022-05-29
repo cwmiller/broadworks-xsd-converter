@@ -252,7 +252,7 @@ class ModelWriter
         // Create private property for field
         $property = (new PropertyGenerator())
             ->setName($field->getName())
-            ->setFlags(PropertyGenerator::FLAG_PRIVATE)
+            ->setFlags(PropertyGenerator::FLAG_PROTECTED)
             ->setDefaultValue($defaultValue)
             ->setDocBlock((new DocBlockGenerator())
                 ->setTags($propertyTags)
