@@ -10,14 +10,14 @@ use CWM\BroadWorksXsdConverter\Schema\Sequence;
 use CWM\BroadWorksXsdConverter\SimpleType;
 use CWM\BroadWorksXsdConverter\Type;
 use RuntimeException;
-use Zend\Code\Generator\ClassGenerator;
-use Zend\Code\Generator\DocBlock\Tag\MethodTag;
-use Zend\Code\Generator\DocBlock\Tag\ParamTag;
-use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
-use Zend\Code\Generator\DocBlockGenerator;
-use Zend\Code\Generator\FileGenerator;
-use Zend\Code\Generator\MethodGenerator;
-use Zend\Code\Generator\PropertyGenerator;
+use Laminas\Code\Generator\ClassGenerator;
+use Laminas\Code\Generator\DocBlock\Tag\MethodTag;
+use Laminas\Code\Generator\DocBlock\Tag\ParamTag;
+use Laminas\Code\Generator\DocBlock\Tag\ReturnTag;
+use Laminas\Code\Generator\DocBlockGenerator;
+use Laminas\Code\Generator\FileGenerator;
+use Laminas\Code\Generator\MethodGenerator;
+use Laminas\Code\Generator\PropertyGenerator;
 
 class ModelWriter
 {
@@ -53,7 +53,7 @@ class ModelWriter
      * Write a class file for all ComplexTypes & EnumTypes
      *
      * @param Type[] $types
-     * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
+     * @throws \Laminas\Code\Generator\Exception\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
      */
@@ -112,7 +112,7 @@ class ModelWriter
      * @param ComplexType $type
      * @param Type[] $allTypes
      * @return ClassGenerator
-     * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
+     * @throws \Laminas\Code\Generator\Exception\InvalidArgumentException
      */
     private function generateComplexTypeClass(ComplexType $type, array $allTypes)
     {
@@ -152,7 +152,7 @@ class ModelWriter
             ->setExtendedClass($qualifiedParentClassName)
             ->setDocBlock(DocBlockGenerator::fromArray([
                 'shortDescription' => $unqualifiedClassName,
-                'longDescription' => $type->getDescription(),
+                'longDescription' => $type->getDescription() ?? '',
                 'tags' => $tags
             ])->setWordWrap(false));
 
@@ -168,7 +168,7 @@ class ModelWriter
      * @param ClassGenerator $class
      * @param Field $field
      * @param array $allTypes
-     * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
+     * @throws \Laminas\Code\Generator\Exception\InvalidArgumentException
      */
     private function generateProperty(ClassGenerator $class, Field $field, array $allTypes)
     {
@@ -267,7 +267,7 @@ class ModelWriter
             ->setName(sprintf('get%s', ucwords($field->getName())))
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Getter for ' . $field->getName())
-                ->setLongDescription($field->getDescription())
+                ->setLongDescription($field->getDescription() ?? '')
                 ->setTags([
                     new ReturnTag(['datatype' => implode('|', $getterTypeAnnotation)])
                 ])
@@ -314,7 +314,7 @@ EOF
                 $field->isNillable() ? ['defaultValue' => null] : []))
             ->setDocBlock((new DocBlockGenerator())
                 ->setShortDescription('Setter for ' . $field->getName())
-                ->setLongDescription($field->getDescription())
+                ->setLongDescription($field->getDescription() ?? '')
                 ->setTags([
                     new ParamTag($field->getName(), implode('|', $getterTypeAnnotation)),
                     new ReturnTag(['datatype' => '$this'])
@@ -360,7 +360,7 @@ EOF
      *
      * @param EnumType $type
      * @return ClassGenerator
-     * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
+     * @throws \Laminas\Code\Generator\Exception\InvalidArgumentException
      */
     private function generateEnumTypeClass(EnumType $type)
     {

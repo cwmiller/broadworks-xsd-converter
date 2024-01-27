@@ -6,13 +6,13 @@ use CWM\BroadWorksXsdConverter\ComplexType;
 use CWM\BroadWorksXsdConverter\Type;
 use ReflectionClass;
 use RuntimeException;
-use Zend\Code\Generator\DocBlock\Tag\ParamTag;
-use Zend\Code\Generator\DocBlock\Tag\ReturnTag;
-use Zend\Code\Generator\DocBlock\Tag\ThrowsTag;
-use Zend\Code\Generator\DocBlockGenerator;
-use Zend\Code\Generator\FileGenerator;
-use Zend\Code\Generator\MethodGenerator;
-use Zend\Code\Generator\TraitGenerator;
+use Laminas\Code\Generator\DocBlock\Tag\ParamTag;
+use Laminas\Code\Generator\DocBlock\Tag\ReturnTag;
+use Laminas\Code\Generator\DocBlock\Tag\ThrowsTag;
+use Laminas\Code\Generator\DocBlockGenerator;
+use Laminas\Code\Generator\FileGenerator;
+use Laminas\Code\Generator\MethodGenerator;
+use Laminas\Code\Generator\TraitGenerator;
 
 class TraitWriter
 {
@@ -58,7 +58,7 @@ class TraitWriter
     /**
      * @param Type[] $types
      * @throws \RuntimeException
-     * @throws \Zend\Code\Generator\Exception\InvalidArgumentException
+     * @throws \Laminas\Code\Generator\Exception\InvalidArgumentException
      */
     public function write(array $types)
     {

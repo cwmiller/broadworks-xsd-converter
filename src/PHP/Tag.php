@@ -1,7 +1,7 @@
 <?php
 namespace CWM\BroadWorksXsdConverter\PHP;
 
-use Zend\Code\Generator\DocBlock\Tag\GenericTag;
+use Laminas\Code\Generator\DocBlock\Tag\GenericTag;
 
 /**
  * Override's Zend's GenericTag due to GenericTag ommitting the "content" value if empty() returns false for it.
