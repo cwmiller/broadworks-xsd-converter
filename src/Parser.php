@@ -171,7 +171,7 @@ class Parser
                 $complexType->setDescription($description);
 
                 // Create @see tags for all Request and Response classes found in the documentation
-                if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smpv]+)?/i', $description, $docTypeMatches)) {
+                if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smpva]+)?/i', $description, $docTypeMatches)) {
                     if (count($docTypeMatches[0]) > 0) {
                         $references = [];
                         foreach ($docTypeMatches[0] as $docTypeMatch) {
@@ -184,7 +184,7 @@ class Parser
 
                 // Find any response objects listed in the documentation
                 if (preg_match('/(The response is|Returns a).*/', $description, $responseMatches)) {
-                    if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smpv]+)?/i', $responseMatches[0], $responseMatches)) {
+                    if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smpva]+)?/i', $responseMatches[0], $responseMatches)) {
                         $responseTypes = array_map(function($responseMatch) {
                             $responseMatch = trim($responseMatch);
                             if ($responseMatch === 'SuccessResponse') {

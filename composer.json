@@ -18,8 +18,7 @@
     "php": ">=5.6.0",
     "ext-xml": "*",
     "ext-dom": "*",
-    "ext-json": "*",
-    "zendframework/zend-code": "^3.1"
+    "ext-json": "*"
   },
   "require-dev": {
     "myclabs/php-enum": "^1.6"

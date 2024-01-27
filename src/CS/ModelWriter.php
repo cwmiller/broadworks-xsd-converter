@@ -121,8 +121,13 @@ class ModelWriter
         }
 
         // Construct the fully qualified class name for the parent class if this type is a sub-type
-        //$qualifiedParentClassName = null;
-        $qualifiedParentClassName = $this->determineComplexParentClass($type);
+        $qualifiedParentClassName = null;
+
+        //try {
+            $qualifiedParentClassName = $this->determineComplexParentClass($type, $allTypes);
+        //} catch(RuntimeException $e) {
+        //    echo $e->getMessage() . PHP_EOL;
+        //}
 
         // Find all types that extend this class
         $childClassNames = [];
@@ -151,7 +156,7 @@ class ModelWriter
             }, $type->getFields()));
     }
 
-    private function determineComplexParentClass(ComplexType $type)
+    private function determineComplexParentClass(ComplexType $type, array $allTypes)
     {
         $parentClass = null;
 
@@ -173,11 +178,44 @@ class ModelWriter
                     $rawResponseTypes = [':C:OCIResponse'];
                 }
 
-                $responseType = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $rawResponseTypes[0]);
+                $expectedResponseTypes = [
+                    ':C:OCIResponse',
+                    ':C:SuccessResponse',
+                    'SuccessResponse',
+                    ':' . ltrim(str_replace('Request', 'Response', $type->getName()), ':'),
+                    ltrim(str_replace('Request', 'Response', $type->getName()), ':')
+                ];
 
-                if (strpos($responseType, 'Response') === false) {
-                    throw new RuntimeException('Response ' . $responseType . ' for ' . $type->getName() . ' doesn\'t seem like a proper response type.');
+                $rawResponseType = $rawResponseTypes[0];
+
+                if (!in_array($rawResponseType, $expectedResponseTypes)) {
+                    //throw new RuntimeException('Response ' . $rawResponseType . ' for ' . $type->getName() . ' doesn\'t look like a proper response type for this request.');
+
+                    // If a type exists that's obviously the response, use it
+                    $possibleResponseType = str_replace('Request', 'Response', $type->getName());
+
+                    $found = false;
+                    foreach ($allTypes as $otherType) {
+                        if ($otherType->getName() === $possibleResponseType) {
+                            $found = true;
+                            echo 'Assuming ' . $possibleResponseType . ' for ' . $type->getName() . PHP_EOL;
+                            break;
+                        }
+                    }
+
+                    if ($found) {
+                        $rawResponseType = $possibleResponseType;
+                    } else {
+                        throw new RuntimeException('Response ' . $rawResponseType . ' for ' . $type->getName() . ' doesn\'t look like a proper response type for this request.');
+
+                    }
                 }
+
+                $responseType = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $rawResponseType);
+
+                //if (strpos($responseType, 'Response') === false) {
+                    //throw new RuntimeException('Response ' . $responseType . ' for ' . $type->getName() . ' doesn\'t seem like a proper response type.');
+                //}
 
                 $parentClass .= '<' . $responseType . '>';
 
