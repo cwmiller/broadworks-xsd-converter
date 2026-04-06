@@ -253,12 +253,10 @@ class ModelWriter
 
         $defaultValue = $field->isArray() ? 'new List<' . $csType . '>()' : null;
 
-        // If nillable, the property when set to null will not be omitted. Instead, it will be sent in the response with the nil=true attribute
-        if ($field->isNillable()) {
-            // Primitive value types need to be wrapped in Nullable<> as do enums
-            // Arrays are ignored though since they become Lists
+        // Nillable and optional properties have a default value of NULL.
+        if ($field->isNillable() || $field->isOptional()) {
             $isEnumType = isset($allTypes[$field->getTypeName()]) && $allTypes[$field->getTypeName()] instanceof EnumType;
-
+            
             if (($isEnumType || TypeUtils::isValueType($csType)) && !$field->isArray()) {
                 $propertyType .= '?';
             }
