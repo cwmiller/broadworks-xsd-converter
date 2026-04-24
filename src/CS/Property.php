@@ -12,6 +12,9 @@ class Property
     /** @var bool */
     private $isNillable = false;
 
+    /** @var bool */
+    private $isOptional = false;
+
     /** @var string */
     private $type;
 
@@ -73,6 +76,24 @@ class Property
     {
         $this->isNillable = $isNillable;
         return $this;
+    }
+
+    /**
+     * @param bool $isOptional
+     * @return $this
+     */
+    public function setIsOptional($isOptional)
+    {
+        $this->isOptional = $isOptional;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isOptional()
+    {
+        return $this->isOptional;
     }
 
     /**

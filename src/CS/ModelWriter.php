@@ -278,6 +278,7 @@ class ModelWriter
             ->setName(ucwords($field->getName()))
             ->setElementName($field->getName())
             ->setIsNillable($field->isNillable())
+            ->setIsOptional($field->isOptional())
             ->setType($propertyType)
             ->setAnnotations($propertyAnnotations)
             ->setDefaultValue($defaultValue);

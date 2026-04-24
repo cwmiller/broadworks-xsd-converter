@@ -1,1 +1,1 @@
-Creates PHP classes from BroadWorks XSD files for use with [BroadWorks Connector](https://github.com/cwmiller/broadworks-connector)
+Generates PHP and C# classes from BroadWorks XSD files for use with [BroadWorks Connector](https://github.com/cwmiller/broadworks-connector) and [BroadWorks Connector.NET](https://github.com/cwmiller/broadworks-connector-net)

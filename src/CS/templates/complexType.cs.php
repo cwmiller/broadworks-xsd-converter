@@ -31,12 +31,19 @@ namespace <?= $template->getNamespace() ?>
 
         protected <?= $property->getType() ?> _<?= lcfirst($property->getName()) ?><?php echo $property->getDefaultValue() !== null ? (' = ' . $property->getDefaultValue()) : '' ?>;
 
+        <?php if ($property->isNillable()) { ?>
+        /// <remarks>Eraseable</remarks>
+        <?php } ?>
         [XmlElement(ElementName = "<?= $property->getElementName() ?>", IsNullable = <?php echo $property->isNillable() ? 'true' : 'false' ?>, Namespace = "")]
         <?=  implode(PHP_EOL, array_map(function($a) { return $a->generate(); }, $property->getAnnotations())) ?><?= PHP_EOL  ?>
         public <?= $property->getType() ?> <?= $property->getName() ?> {
             get => _<?= lcfirst($property->getName()) ?>;
             set {
-                <?= $property->getName() ?>Specified = true;
+                <?php if ($property->isOptional() && !$property->isNillable()) { ?>
+                    <?= $property->getName() ?>Specified = (value != null);
+                <?php } else { ?>
+                    <?= $property->getName() ?>Specified = true;
+                <?php } ?>
                 _<?= lcfirst($property->getName()) ?> = value;
             }
         }
