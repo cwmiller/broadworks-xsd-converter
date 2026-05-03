@@ -40,6 +40,8 @@ class Parser
     {
         $this->parseFile($this->rootFile);
 
+        $this->types = $this->determineResponseTypes($this->types);
+
         return $this->types;
     }
 
@@ -161,52 +163,6 @@ class Parser
             ->setOwnerName($ownerName)
             ->setAbstract($element->getAttribute('abstract') === 'true');
 
-        // Retrieve the documentation tag to get the type's description
-        $annotationElements = $element->getElementsByTagName('annotation');
-        if ($annotationElements->length > 0) {
-            $documentationElements = $annotationElements->item(0)->getElementsByTagName('documentation');
-            if ($documentationElements->length > 0) {
-                $description = trim($documentationElements->item(0)->nodeValue);
-
-                $complexType->setDescription($description);
-
-                // Create @see tags for all Request and Response classes found in the documentation
-                if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smpva]+)?/i', $description, $docTypeMatches)) {
-                    if (count($docTypeMatches[0]) > 0) {
-                        $references = [];
-                        foreach ($docTypeMatches[0] as $docTypeMatch) {
-                            $references[] = $docTypeMatch;
-                        }
-
-                        $complexType->setReferences($references);
-                    }
-                }
-
-                // Find any response objects listed in the documentation
-                if (preg_match('/(The response is|Returns a).*/', $description, $responseMatches)) {
-                    if (preg_match_all('/[a-zA-Z0-9]+Response([0-9smpva]+)?/i', $responseMatches[0], $responseMatches)) {
-                        $responseTypes = array_map(function($responseMatch) {
-                            $responseMatch = trim($responseMatch);
-                            if ($responseMatch === 'SuccessResponse') {
-                                $responseMatch = ':C:' . $responseMatch;
-                            }
-
-                            return trim($responseMatch);
-                        }, $responseMatches[0]);
-
-                        // Remove ErrorResponse from the return types
-                        $responseTypes = array_filter($responseTypes, function($type) {
-                            $type = (string)$type;
-
-                            return $type !== '' &&  $type !== 'ErrorResponse';
-                        });
-
-                        $complexType->setResponseTypes($responseTypes);
-                    }
-                }
-            }
-        }
-
         // Retrieve the complexContent element (if it exists) to get the base type
         $contentElements = $element->getElementsByTagName('complexContent');
         if ($contentElements->length > 0) {
@@ -215,6 +171,33 @@ class Parser
                 $base = $extensionElements->item(0)->getAttribute('base');
                 if ($base !== null) {
                     $complexType->setParentName($this->toQualifiedName($base, $namespace, $schemaElement));
+                }
+            }
+        }
+
+        // Retrieve the documentation tag to get the type's description
+        $annotationElements = $element->getElementsByTagName('annotation');
+        if ($annotationElements->length > 0) {
+            $documentationElements = $annotationElements->item(0)->getElementsByTagName('documentation');
+            if ($documentationElements->length > 0) {
+                // Set description to the full raw description
+                $description = trim($documentationElements->item(0)->nodeValue);
+                $complexType->setDescription($description);
+
+                // Reformat description to be parsed for references and response types. Remove new lines and extra spaces to make regex parsing easier
+                $description = preg_replace('/ +/', ' ', str_replace("\n", ' ', $description));
+
+                // Create reference tags for all Request and Response classes found in the documentation
+                $references = [];
+                if (preg_match_all('/[a-zA-Z0-9]+(Response|Request)([0-9smpva]+)?[ \.]/i', $description, $docTypeMatches)) {
+                    if (count($docTypeMatches[0]) > 0) {
+                        $references = [];
+                        foreach ($docTypeMatches[0] as $docTypeMatch) {
+                            $references[] = trim($docTypeMatch, ' .');
+                        }
+
+                        $complexType->setReferences(array_values(array_unique($references)));
+                    }
                 }
             }
         }
@@ -228,6 +211,50 @@ class Parser
         $this->addType($complexType);
 
         return $complexType;
+    }
+
+    /**
+     * Update response types on complex types after they've all been read in
+     * Needs to be called after all types are loaded so it can validate that a response type exists
+     * @param array $types
+     */
+    private function determineResponseTypes(array $types) 
+    {
+        foreach ($types as $type) {
+            if (!($type instanceof ComplexType) || !($type->getParentName() === 'C:OCIRequest')) {
+                continue;
+            }
+
+            $implicitResponseType = preg_replace('/Request/', 'Response', $type->getName());
+            $implicitExists = false;
+
+            //echo $implicitResponseType . PHP_EOL;
+
+            foreach ($types as $otherType) {
+                if ($otherType->getName() === $implicitResponseType) {
+                    $implicitExists = true;
+                }
+            }
+
+            $responseTypes = [];
+
+            if ($implicitExists) {
+                $responseTypes []= $implicitResponseType;
+            }
+
+            if (in_array('SuccessResponse', $type->getReferences())) {
+                $responseTypes []= 'C:SuccessResponse';
+            }
+
+            // Default to SuccessResponse if nothing can be found
+            if (count($responseTypes) === 0) {
+                $responseTypes []= 'C:SuccessResponse';
+            }
+
+            $type->setResponseTypes($responseTypes);
+        }
+
+        return $types;
     }
 
     /**

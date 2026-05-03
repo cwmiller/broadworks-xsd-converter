@@ -168,61 +168,20 @@ class ModelWriter
             if ($type->getParentName() === 'C:OCIRequest') {
                 $rawResponseTypes = $type->getResponseTypes();
 
-                if (count($rawResponseTypes) === 0) {
-                    throw new RuntimeException('No response types for ' . $type->getName());
-                }
-
                 if (count($rawResponseTypes) > 1) {
                     echo 'Multiple response types for ' . $type->getName()  . '. Response type will be OCIResponse.' . PHP_EOL;
-
                     $rawResponseTypes = [':C:OCIResponse'];
                 }
 
-                $expectedResponseTypes = [
-                    ':C:OCIResponse',
-                    ':C:SuccessResponse',
-                    'SuccessResponse',
-                    ':' . ltrim(str_replace('Request', 'Response', $type->getName()), ':'),
-                    ltrim(str_replace('Request', 'Response', $type->getName()), ':')
-                ];
+                $rawResponseType = count($rawResponseTypes) > 0 ? $rawResponseTypes[0] : NULL;
 
-                $rawResponseType = $rawResponseTypes[0];
-
-                if (!in_array($rawResponseType, $expectedResponseTypes)) {
-                    //throw new RuntimeException('Response ' . $rawResponseType . ' for ' . $type->getName() . ' doesn\'t look like a proper response type for this request.');
-
-                    // If a type exists that's obviously the response, use it
-                    $possibleResponseType = str_replace('Request', 'Response', $type->getName());
-
-                    $found = false;
-                    foreach ($allTypes as $otherType) {
-                        if ($otherType->getName() === $possibleResponseType) {
-                            $found = true;
-                            echo 'Assuming ' . $possibleResponseType . ' for ' . $type->getName() . PHP_EOL;
-                            break;
-                        }
-                    }
-
-                    if ($found) {
-                        $rawResponseType = $possibleResponseType;
-                    } else {
-                        throw new RuntimeException('Response ' . $rawResponseType . ' for ' . $type->getName() . ' doesn\'t look like a proper response type for this request.');
-
-                    }
+                if ($rawResponseType === null) {
+                    throw new RuntimeException('No response types for ' . $type->getName());
                 }
 
                 $responseType = TypeUtils::typeNameToQualifiedName($this->baseNamespace, $rawResponseType);
 
-                //if (strpos($responseType, 'Response') === false) {
-                    //throw new RuntimeException('Response ' . $responseType . ' for ' . $type->getName() . ' doesn\'t seem like a proper response type.');
-                //}
-
                 $parentClass .= '<' . $responseType . '>';
-
-                /*
-                $responseNamespace = explode('.', $responseType);
-                array_pop($responseNamespace);
-                */
             }
         }
 
